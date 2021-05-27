@@ -2,6 +2,12 @@
 
 Different dataset as compared to the Open version of VCTK
 
+Use X-vector as the speaker embedding
+
+Several things to check in this directory:
+
+1. Working with CUED version of VCTK data
+2. Loading of X-vector of different format?
 
 
 
