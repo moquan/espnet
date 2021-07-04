@@ -446,18 +446,27 @@ class Make_X_Vector(object):
     '''
     Make directory named "dump/xvector"
     dump/xvector
-      |-- tr_no_dev
-            xvector.scp spk_xvector.scp
-            Each line of scp: "   utterance_id_A /some/where/a.npy\n"
-      |-- dev
-      |-- eval1
+        |-- tr_no_dev
+            xvector.scp 
+                p225_001 dump/xvector/tr_no_dev/xvector.1.ark:9
+            spk_xvector.scp
+                p225 dump/xvector/tr_no_dev/spk_xvector.ark:5
+        |-- dev
+        |-- eval1
+
+    But, we have many experiments, thus add another layer
+    dump/xvector
+        |-- cmp
+            p001.npy p002.npy
+            |-- tr_no_dev
+                xvector.scp spk_xvector.scp
     '''
     def __init__(self, dv_y_cfg):
         super(Make_X_Vector, self).__init__()
         self.dv_y_cfg = dv_y_cfg
 
         self.x_vector_dir = os.path.join(self.dv_y_cfg.data_dirs_to_link, 'dump', 'xvector')
-        prepare_script_file_path(self.data_dir)
+        prepare_script_file_path(self.x_vector_dir)
         
         self.DMLFIO = Data_Meta_List_File_IO()
         self.file_id_list_num_sil_frame = self.DMLFIO.read_file_list_num_silence_frame()
@@ -471,6 +480,7 @@ class Make_X_Vector(object):
 
         spk_embed_values = pickle.load(open(spk_embed_file, 'rb'))
         exp_dir_name = os.path.join(self.x_vector_dir, spk_embed_name)
+
         self.save_speaker_embed_files(spk_embed_values, exp_dir_name)
 
         for dir_name in ['tr_no_dev', 'dev', 'eval1']:
@@ -484,12 +494,50 @@ class Make_X_Vector(object):
             if dir_name == 'eval1':
                 file_id_list_file = os.path.join(dv_y_cfg.file_id_list_dir,'test.scp')
 
-            self.make_speaker_scp(full_dir_name, file_id_list_file, spk_embed_values)
-            self.make_file_scp(full_dir_name, file_id_list_file, spk_embed_values)
+            self.make_file_scp(full_dir_name, file_id_list_file, spk_embed_name)
+            self.make_speaker_scp(full_dir_name, file_id_list_file, spk_embed_name)
 
     def save_speaker_embed_files(self, spk_embed_values, exp_dir_name):
+        # dump/cmp/p001.npy
+        prepare_script_file_path(exp_dir_name)
         for speaker_id in spk_embed_values.keys():
-            speaker_file_name = os.path.join(exp_dir_name, "%s.npy"%speaker_id)
+            new_speaker_id = pad_speaker_id(speaker_id)
+            speaker_file_name = os.path.join(exp_dir_name, "%s.npy"%new_speaker_id)
+            spk_embed_values[speaker_id].tofile(speaker_file_name)
+
+    def make_file_scp(self, full_dir_name, file_id_list_file, spk_embed_name):
+        # file_id dump/xvector/{spk_embed_name}/speaker_id.npy
+        file_id_list = read_file_list(file_id_list_file)
+
+        write_file_name = os.path.join(full_dir_name, 'xvector.scp')
+        print('Writing to %s' % write_file_name)
+        with open(write_file_name, 'w') as f:
+            for file_id in file_id_list:
+                speaker_id = file_id.split('_')[0]
+                f.write('%s dump/xvector/%s/%s.npy\n' % (file_id, spk_embed_name, speaker_id))
+
+    def make_speaker_scp(self, full_dir_name, file_id_list_file, spk_embed_name):
+        # speaker_id dump/xvector/{spk_embed_name}/speaker_id.npy
+        file_id_list = read_file_list(file_id_list_file)
+
+        # extract all speaker_id
+        speaker_id_list = []
+        for file_id in file_id_list:
+            speaker_id = file_id.split('_')[0]
+            if len(speaker_id_list) == 0 or speaker_id != speaker_id_list[-1]:
+                    speaker_id_list.append(speaker_id)
+
+        write_file_name = os.path.join(full_dir_name, 'spk_xvector.scp')
+        print('Writing to %s' % write_file_name)
+        with open(write_file_name, 'w') as f:
+            for speaker_id in speaker_id_list:
+                f.write('%s dump/xvector/%s/%s.npy\n' % (speaker_id, spk_embed_name, speaker_id))
+
+
+
+
+
+
 
 
         
@@ -534,7 +582,8 @@ if __name__ == '__main__':
 
     dv_y_cfg = dv_y_configuration()
     # process_runner = Make_Corpus(dv_y_cfg)
-    process_runner = Make_Data(dv_y_cfg)
+    # process_runner = Make_Data(dv_y_cfg)
+    process_runner = Make_X_Vector(dv_y_cfg)
     process_runner.run()
 
     # write_train_valid_test_file_id_list(dv_y_cfg)
