@@ -6,7 +6,7 @@
 #   Run or submit after writing                      #
 ######################################################
 
-import os, pickle
+import os, pickle, numpy
 import subprocess
 from frontend_mw545.modules import prepare_script_file_path, read_file_list, File_List_Selecter
 from frontend_mw545.data_io import Data_Meta_List_File_IO
@@ -494,8 +494,8 @@ class Make_X_Vector(object):
             if dir_name == 'eval1':
                 file_id_list_file = os.path.join(dv_y_cfg.file_id_list_dir,'test.scp')
 
-            self.make_file_scp(full_dir_name, file_id_list_file, spk_embed_name)
-            self.make_speaker_scp(full_dir_name, file_id_list_file, spk_embed_name)
+            # self.make_file_scp(full_dir_name, file_id_list_file, spk_embed_name)
+            # self.make_speaker_scp(full_dir_name, file_id_list_file, spk_embed_name)
 
     def save_speaker_embed_files(self, spk_embed_values, exp_dir_name):
         # dump/cmp/p001.npy
@@ -503,7 +503,8 @@ class Make_X_Vector(object):
         for speaker_id in spk_embed_values.keys():
             new_speaker_id = pad_speaker_id(speaker_id)
             speaker_file_name = os.path.join(exp_dir_name, "%s.npy"%new_speaker_id)
-            spk_embed_values[speaker_id].tofile(speaker_file_name)
+            # spk_embed_values[speaker_id].tofile(speaker_file_name)
+            numpy.save(speaker_file_name, spk_embed_values[speaker_id])
 
     def make_file_scp(self, full_dir_name, file_id_list_file, spk_embed_name):
         # file_id dump/xvector/{spk_embed_name}/speaker_id.npy
