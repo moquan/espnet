@@ -14,8 +14,8 @@ from frontend_mw545.data_io import Data_Meta_List_File_IO
 class dv_y_configuration(object):
   
     def __init__(self):
-        self.espnet_root = '/home/dawna/tts/mw545/TorchTTS/espnet_py36/espnet'
-        self.work_dir    = '/home/dawna/tts/mw545/TorchTTS/espnet_py36/espnet/egs2/CUED_vctk'
+        self.espnet_root = '/data/vectra2/tts/mw545/TorchTTS/espnet_py36/espnet'
+        self.work_dir    = '/data/vectra2/tts/mw545/TorchTTS/espnet_py36/espnet/egs2/CUED_vctk'
         self.raw_data_dir = '/data/vectra2/tts/mw545/TorchTTS/espnet_py36/espnet/egs2/CUED_vctk/VCTK-Corpus' # currently: filelists  mel24  spk_embedding  txt  wav24  wav48
         self.file_id_list_dir = os.path.join(self.raw_data_dir, 'filelists/train_valid_test_SR')
 
@@ -475,8 +475,10 @@ class Make_X_Vector(object):
 
 
     def run(self):
-        spk_embed_file = '/home/dawna/tts/mw545/TorchDV/dv_cmp_baseline/dvy_cmp_lr1E-04_fpu40_LRe512L_LRe512L_Lin512L_DV512S1B161T40D3440/dv_spk_dict.dat'
-        spk_embed_name = 'cmp'
+        # spk_embed_file = '/home/dawna/tts/mw545/TorchDV/dv_cmp_baseline/dvy_cmp_lr1E-04_fpu40_LRe512L_LRe512L_Lin512L_DV512S1B161T40D3440/dv_spk_dict.dat'
+        # spk_embed_name = 'cmp'
+        spk_embed_file = '/home/dawna/tts/mw545/TorchDV/dv_wav_sincnet/dvy_wav_lr1E-04_fpu4_Sin80_LRe512L_LRe512L_Lin512L_DV512S1B161M77T160/dv_spk_dict.dat'
+        spk_embed_name = 'sincnet'
 
         spk_embed_values = pickle.load(open(spk_embed_file, 'rb'))
         exp_dir_name = os.path.join(self.x_vector_dir, spk_embed_name)
@@ -494,8 +496,8 @@ class Make_X_Vector(object):
             if dir_name == 'eval1':
                 file_id_list_file = os.path.join(dv_y_cfg.file_id_list_dir,'test.scp')
 
-            # self.make_file_scp(full_dir_name, file_id_list_file, spk_embed_name)
-            # self.make_speaker_scp(full_dir_name, file_id_list_file, spk_embed_name)
+            self.make_file_scp(full_dir_name, file_id_list_file, spk_embed_name)
+            self.make_speaker_scp(full_dir_name, file_id_list_file, spk_embed_name)
 
     def save_speaker_embed_files(self, spk_embed_values, exp_dir_name):
         # dump/cmp/p001.npy
@@ -544,7 +546,7 @@ class Make_X_Vector(object):
         
 
 
-def setup_exp_directory(dv_y_cfg):
+def setup_2_stage_exp_directory(dv_y_cfg):
     setup_script = 'setup.sh'
     dataset_name = 'CUED_vctk'
     exp_name = 'tts_2_stage'
@@ -569,10 +571,49 @@ def setup_exp_directory(dv_y_cfg):
     print('Change run_grid.sh')
     print('Run step 2 in run_grid.sh')
 
+def setup_integrated_exp_directory(dv_y_cfg):
+
+    setup_script = 'setup.sh'
+    dataset_name = 'CUED_vctk'
+    exp_name = 'tts_integrated'
+
+    write_file_name = setup_script
+    print('Writing to %s' % write_file_name)
+    with open(write_file_name, 'w') as f:
+        f.write('cd %s\n' % dv_y_cfg.espnet_root)
+        f.write('egs2/TEMPLATE/tts1/setup.sh egs2/%s/%s\n' % (dataset_name, exp_name))
+        f.write('cd egs2/%s/%s\n' % (dataset_name, exp_name))
+        f.write('cp ../../mini_an4/tts1/run.sh .\n')
+        f.write('ln -s %s/* .\n' % dv_y_cfg.data_dirs_to_link)
+        f.write('rm tts.sh\n')
+        f.write('ln -s ../scripts/tts.sh\n')
+        
+
+        # Scripts in previous vctk exp dir
+        f.write('cp ../../vctk/tts_gst/run.sh .\n')
+        f.write('cp ../../vctk/tts_gst/run_grid.sh .\n')
+        f.write('cp ../../vctk/tts_gst/submit_grid.sh .\n')
+        f.write('cp ../../vctk/tts_gst/conf/* conf/ -r \n')
+
+
+    print('Run setup.sh')
+    print('Change run_grid.sh')
+    print('Run step 2 in run_grid.sh')
 
 
 
-
+def temp_change():
+    # Temp script: after move kaldi-style dump/xvector to dump/xvector/xvector, modify .scp files
+    # Run once in each directory, tr_no_dev, dev, eval1
+    import os
+    file_list = os.listdir('.')
+    for file_name in file_list:
+        if file_name.split('.')[-1] == 'scp':
+            with open(file_name, 'r') as f_1:
+                line_list_1 = f_1.readlines()
+            line_list_2 = [x.replace('dump/xvector', 'dump/xvector/xvector') for x in line_list_1]
+            with open(file_name, 'w') as f_2:
+                f_2.writelines(line_list_2)
 
 
 
@@ -584,11 +625,11 @@ if __name__ == '__main__':
     dv_y_cfg = dv_y_configuration()
     # process_runner = Make_Corpus(dv_y_cfg)
     # process_runner = Make_Data(dv_y_cfg)
-    process_runner = Make_X_Vector(dv_y_cfg)
-    process_runner.run()
+    # process_runner = Make_X_Vector(dv_y_cfg)
+    # process_runner.run()
 
     # write_train_valid_test_file_id_list(dv_y_cfg)
-    # setup_exp_directory(dv_y_cfg)
+    setup_integrated_exp_directory(dv_y_cfg)
     
     pass
 
@@ -607,7 +648,7 @@ def collect_tokens():
     '''
     dv_y_cfg = dv_y_configuration()
 
-    lab_state_align_dir = '/home/dawna/tts/mw545/TorchTTS/espnet_py36/espnet/egs2/CUED_vctk/VCTK-Corpus/lab/labels'
+    lab_state_align_dir = '/data/vectra2/tts/mw545/TorchTTS/espnet_py36/espnet/egs2/CUED_vctk/VCTK-Corpus/lab/labels'
     speaker_id_list = dv_y_cfg.speaker_id_list_dict['all']
     
     token_list = []
@@ -640,8 +681,8 @@ def make_mono_labs():
     '''
     dv_y_cfg = dv_y_configuration()
 
-    lab_state_align_dir = '/home/dawna/tts/mw545/TorchTTS/espnet_py36/espnet/egs2/CUED_vctk/VCTK-Corpus/lab/labels'
-    lab_mono_dir = '/home/dawna/tts/mw545/TorchTTS/espnet_py36/espnet/egs2/CUED_vctk/VCTK-Corpus/lab/mono'
+    lab_state_align_dir = '/data/vectra2/tts/mw545/TorchTTS/espnet_py36/espnet/egs2/CUED_vctk/VCTK-Corpus/lab/labels'
+    lab_mono_dir = '/data/vectra2/tts/mw545/TorchTTS/espnet_py36/espnet/egs2/CUED_vctk/VCTK-Corpus/lab/mono'
 
     speaker_id_list = dv_y_cfg.speaker_id_list_dict['all']
     for speaker_id in speaker_id_list:
