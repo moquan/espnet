@@ -52,6 +52,9 @@ max_wav_duration=20  # Maximum duration in second.
 use_xvector=false    # Whether to use x-vector (Require Kaldi).
 spk_embed_name=''    # Which X-vector to use, dump/xvector/spk_embed_name
 spk_embed_type='npy' # Use numpy or kaldi_ark (from downloaded x-vector)
+use_spk_model=false  # Whether to use a model to extract spk_embed
+spk_model_name=''    # Which spk_embed model to use
+
 # Only used for feats_type != raw
 fs=16000          # Sampling rate.
 fmin=80           # Minimum frequency of Mel basis.
@@ -137,6 +140,8 @@ Options:
     --use_xvector      # Whether to use X-vector (Require Kaldi, default="${use_xvector}").
     --spk_embed_name   # Which X-vector to use, dump/xvector/spk_embed_name (default="${spk_embed_name}").
     --spk_embed_type   # Use numpy or kaldi_ark (from downloaded x-vector) (default="npy").
+    --use_spk_model    # Whether to use a model to extract spk_embed (default=false)
+    --spk_model_name   # Which spk_embed model to use
 
     --fs               # Sampling rate (default="${fs}").
     --fmax             # Maximum frequency of Mel basis (default="${fmax}").
@@ -271,6 +276,9 @@ if [ -z "${tts_stats_dir}" ]; then
     if "${use_xvector}"; then
         tts_stats_dir+="_${spk_embed_name}"
     fi
+    if "${use_spk_model}"; then
+        tts_stats_dir+="_${spk_model_name}"
+    fi    
 fi
 # The directory used for training commands
 if [ -z "${tts_exp}" ]; then
@@ -278,6 +286,9 @@ if [ -z "${tts_exp}" ]; then
 fi
 if "${use_xvector}"; then
     tts_exp+="_${spk_embed_name}"
+fi
+if "${use_spk_model}"; then
+    tts_exp+="_${spk_model_name}"
 fi
 
 
