@@ -50,6 +50,8 @@ audio_format=flac    # Audio format: wav, flac, wav.ark, flac.ark  (only in feat
 min_wav_duration=0.1 # Minimum duration in second.
 max_wav_duration=20  # Maximum duration in second.
 use_xvector=false    # Whether to use x-vector (Require Kaldi).
+spk_embed_name=''    # Which X-vector to use, dump/xvector/spk_embed_name
+spk_embed_type='npy' # Use numpy or kaldi_ark (from downloaded x-vector)
 # Only used for feats_type != raw
 fs=16000          # Sampling rate.
 fmin=80           # Minimum frequency of Mel basis.
@@ -133,6 +135,9 @@ Options:
     --min_wav_duration # Minimum duration in second (default="${min_wav_duration}").
     --max_wav_duration # Maximum duration in second (default="${max_wav_duration}").
     --use_xvector      # Whether to use X-vector (Require Kaldi, default="${use_xvector}").
+    --spk_embed_name   # Which X-vector to use, dump/xvector/spk_embed_name (default="${spk_embed_name}").
+    --spk_embed_type   # Use numpy or kaldi_ark (from downloaded x-vector) (default="npy").
+
     --fs               # Sampling rate (default="${fs}").
     --fmax             # Maximum frequency of Mel basis (default="${fmax}").
     --fmin             # Minimum frequency of Mel basis (default="${fmin}").
@@ -263,10 +268,16 @@ if [ -z "${tts_stats_dir}" ]; then
     if [ "${token_type}" = phn ]; then
         tts_stats_dir+="_${g2p}"
     fi
+    if "${use_xvector}"; then
+        tts_stats_dir+="_${spk_embed_name}"
+    fi
 fi
 # The directory used for training commands
 if [ -z "${tts_exp}" ]; then
     tts_exp="${expdir}/tts_${tag}"
+fi
+if "${use_xvector}"; then
+    tts_exp+="_${spk_embed_name}"
 fi
 
 
@@ -358,10 +369,10 @@ if ! "${skip_data_prep}"; then
         fi
     fi
 
-    if [ ${stage} -le 10 ] && [ ${stop_stage} -ge 10 ]; then
+    if [ ${stage} -le 20 ] && [ ${stop_stage} -ge 20 ]; then
         # Extract X-vector
         if "${use_xvector}"; then
-            log "Stage 2+: Extract X-vector: data/ -> ${dumpdir}/xvector (Require Kaldi)"
+            log "Stage 2.0+: Extract X-vector: data/ -> ${dumpdir}/xvector (Require Kaldi)"
             # Download X-vector pretrained model
             xvector_exp=${expdir}/xvector_nnet_1a
             if [ ! -e "${xvector_exp}" ]; then
@@ -573,10 +584,10 @@ if ! "${skip_train}"; then
         fi
 
         if "${use_xvector}"; then
-            _xvector_train_dir="${dumpdir}/xvector/${train_set}"
-            _xvector_valid_dir="${dumpdir}/xvector/${valid_set}"
-            _opts+="--train_data_path_and_name_and_type ${_xvector_train_dir}/xvector.scp,spembs,kaldi_ark "
-            _opts+="--valid_data_path_and_name_and_type ${_xvector_valid_dir}/xvector.scp,spembs,kaldi_ark "
+            _xvector_train_dir="${dumpdir}/xvector/${spk_embed_name}/${train_set}"
+            _xvector_valid_dir="${dumpdir}/xvector/${spk_embed_name}/${valid_set}"
+            _opts+="--train_data_path_and_name_and_type ${_xvector_train_dir}/xvector.scp,spembs,${spk_embed_type} "
+            _opts+="--valid_data_path_and_name_and_type ${_xvector_valid_dir}/xvector.scp,spembs,${spk_embed_type} "
         fi
 
         # 1. Split the key file
@@ -815,10 +826,10 @@ if ! "${skip_train}"; then
 
         # Add X-vector to the inputs if needed
         if "${use_xvector}"; then
-            _xvector_train_dir="${dumpdir}/xvector/${train_set}"
-            _xvector_valid_dir="${dumpdir}/xvector/${valid_set}"
-            _opts+="--train_data_path_and_name_and_type ${_xvector_train_dir}/xvector.scp,spembs,kaldi_ark "
-            _opts+="--valid_data_path_and_name_and_type ${_xvector_valid_dir}/xvector.scp,spembs,kaldi_ark "
+            _xvector_train_dir="${dumpdir}/xvector/${spk_embed_name}/${train_set}"
+            _xvector_valid_dir="${dumpdir}/xvector/${spk_embed_name}/${valid_set}"
+            _opts+="--train_data_path_and_name_and_type ${_xvector_train_dir}/xvector.scp,spembs,${spk_embed_type} "
+            _opts+="--valid_data_path_and_name_and_type ${_xvector_valid_dir}/xvector.scp,spembs,${spk_embed_type} "
         fi
 
         log "Generate '${tts_exp}/run.sh'. You can resume the process from stage 6 using this script"
@@ -959,8 +970,8 @@ if ! "${skip_eval}"; then
 
             # Add X-vector to the inputs if needed
             if "${use_xvector}"; then
-                _xvector_dir="${dumpdir}/xvector/${dset}"
-                _ex_opts+="--data_path_and_name_and_type ${_xvector_dir}/xvector.scp,spembs,kaldi_ark "
+                _xvector_dir="${dumpdir}/xvector/${spk_embed_name}/${dset}"
+                _ex_opts+="--data_path_and_name_and_type ${_xvector_dir}/xvector.scp,spembs,${spk_embed_type} "
             fi
 
             # 0. Copy feats_type
