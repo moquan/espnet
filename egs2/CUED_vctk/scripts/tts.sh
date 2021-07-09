@@ -383,7 +383,7 @@ if ! "${skip_data_prep}"; then
     if [ ${stage} -le 20 ] && [ ${stop_stage} -ge 20 ]; then
         # Extract X-vector
         if "${use_xvector}"; then
-            log "Stage 2.0+: Extract X-vector: data/ -> ${dumpdir}/xvector (Require Kaldi)"
+            log "Stage 2.0+: Extract X-vector: data/ -> ${dumpdir}/xvector/xvector (Require Kaldi)"
             # Download X-vector pretrained model
             xvector_exp=${expdir}/xvector_nnet_1a
             if [ ! -e "${xvector_exp}" ]; then
@@ -420,7 +420,7 @@ if ! "${skip_data_prep}"; then
                 sid/nnet3/xvector/extract_xvectors.sh --nj "${_nj}" --cmd "${train_cmd}" \
                     "${xvector_exp}" \
                     "${dumpdir}/mfcc/${dset}" \
-                    "${dumpdir}/xvector/${dset}"
+                    "${dumpdir}/xvector/xvector/${dset}"
 
                 # 5. Filter scp
                 # NOTE(kan-bayashi): Since sometimes mfcc or x-vector extraction is failed,
@@ -433,7 +433,7 @@ if ! "${skip_data_prep}"; then
                 fi
                 cp "${data_feats}${_suf}/${dset}"/wav.{scp,scp.bak}
                 <"${data_feats}${_suf}/${dset}/wav.scp.bak" \
-                    utils/filter_scp.pl "${dumpdir}/xvector/${dset}/xvector.scp" \
+                    utils/filter_scp.pl "${dumpdir}/xvector/xvector/${dset}/xvector.scp" \
                     >"${data_feats}${_suf}/${dset}/wav.scp"
                 utils/fix_data_dir.sh "${data_feats}${_suf}/${dset}"
             done
