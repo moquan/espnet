@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from espnet2.tasks.tts import TTSTask
+from espnet2_modified_CUED.tts import TTSTask
 
 
 def get_parser():
