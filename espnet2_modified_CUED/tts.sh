@@ -286,6 +286,9 @@ if [ -z "${tts_exp}" ]; then
 fi
 if "${use_xvector}"; then
     tts_exp+="_${spk_embed_name}"
+    if [ "${spk_embed_name}" = xvector ]; then
+        spk_embed_type=kaldi_ark
+    fi
 fi
 if "${use_spk_model}"; then
     tts_exp+="_${spk_model_name}"
@@ -601,6 +604,8 @@ if ! "${skip_train}"; then
             _opts+="--valid_data_path_and_name_and_type ${_xvector_valid_dir}/xvector.scp,spembs,${spk_embed_type} "
         fi
 
+
+
         # 1. Split the key file
         _logdir="${tts_stats_dir}/logdir"
         mkdir -p "${_logdir}"
@@ -843,6 +848,16 @@ if ! "${skip_train}"; then
             _opts+="--valid_data_path_and_name_and_type ${_xvector_valid_dir}/xvector.scp,spembs,${spk_embed_type} "
         fi
 
+        # Add data input to speaker representation model, if needed
+        if "${use_spk_model}"; then
+            if [ "${spk_model_name}" = cmp ]; then
+                _spk_model_data_train_dir="${dumpdir}/spk_model_data/${spk_model_name}/${train_set}"
+                _spk_model_data_valid_dir="${dumpdir}/spk_model_data/${spk_model_name}/${valid_set}"
+                _opts+="--train_data_path_and_name_and_type ${_spk_model_data_train_dir}/cmp.scp,spk_model_data_cmp,binary "
+                _opts+="--valid_data_path_and_name_and_type ${_spk_model_data_train_dir}/cmp.scp,spk_model_data_cmp,binary "
+            fi
+        fi
+
         log "Generate '${tts_exp}/run.sh'. You can resume the process from stage 6 using this script"
         mkdir -p "${tts_exp}"; echo "${run_args} --stage 6 \"\$@\"; exit \$?" > "${tts_exp}/run.sh"; chmod +x "${tts_exp}/run.sh"
 
@@ -863,7 +878,7 @@ if ! "${skip_train}"; then
             --num_nodes "${num_nodes}" \
             --init_file_prefix "${tts_exp}"/.dist_init_ \
             --multiprocessing_distributed true -- \
-            ${python} -m espnet2.bin.tts_train \
+            ${python} -m espnet2_modified_CUED.tts_train \
                 --use_preprocessor true \
                 --token_type "${token_type}" \
                 --token_list "${token_list}" \
