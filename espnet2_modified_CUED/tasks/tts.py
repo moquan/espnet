@@ -18,7 +18,7 @@ from espnet2.tasks.abs_task import AbsTask
 from espnet2.train.class_choices import ClassChoices
 from espnet2.train.collate_fn import CommonCollateFn
 from espnet2.train.preprocessor import CommonPreprocessor
-from espnet2.train.trainer import Trainer
+# from espnet2.train.trainer import Trainer
 from espnet2.tts.abs_tts import AbsTTS
 from espnet2.tts.espnet_model import ESPnetTTSModel
 from espnet2.tts.fastspeech import FastSpeech
@@ -35,6 +35,8 @@ from espnet2.utils.nested_dict_action import NestedDictAction
 from espnet2.utils.types import int_or_none
 from espnet2.utils.types import str2bool
 from espnet2.utils.types import str_or_none
+
+from espnet2_modified_CUED.train.trainer import Trainer
 
 feats_extractor_choices = ClassChoices(
     "feats_extract",

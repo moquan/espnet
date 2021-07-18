@@ -878,7 +878,7 @@ if ! "${skip_train}"; then
             --num_nodes "${num_nodes}" \
             --init_file_prefix "${tts_exp}"/.dist_init_ \
             --multiprocessing_distributed true -- \
-            ${python} -m espnet2_modified_CUED.tts_train \
+            ${python} -m espnet2_modified_CUED.bin.tts_train \
                 --use_preprocessor true \
                 --token_type "${token_type}" \
                 --token_list "${token_list}" \

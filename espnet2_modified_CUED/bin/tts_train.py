@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from espnet2_modified_CUED.tts import TTSTask
+from espnet2_modified_CUED.tasks.tts import TTSTask
 
 
 def get_parser():
@@ -15,8 +15,7 @@ def main(cmd=None):
         % python tts_train.py asr --print_config --optim adadelta
         % python tts_train.py --config conf/train_asr.yaml
     """
-    print('check')
-    # TTSTask.main(cmd=cmd)
+    TTSTask.main(cmd=cmd)
 
 
 if __name__ == "__main__":
