@@ -20,7 +20,7 @@ from espnet2.train.collate_fn import CommonCollateFn
 from espnet2.train.preprocessor import CommonPreprocessor
 # from espnet2.train.trainer import Trainer
 from espnet2.tts.abs_tts import AbsTTS
-from espnet2.tts.espnet_model import ESPnetTTSModel
+# from espnet2.tts.espnet_model import ESPnetTTSModel
 from espnet2.tts.fastspeech import FastSpeech
 from espnet2.tts.fastspeech2 import FastSpeech2
 from espnet2.tts.feats_extract.abs_feats_extract import AbsFeatsExtract
@@ -37,6 +37,7 @@ from espnet2.utils.types import str2bool
 from espnet2.utils.types import str_or_none
 
 from espnet2_modified_CUED.train.trainer import Trainer
+from espnet2_modified_CUED.tts.espnet_model import ESPnetTTSModel
 
 feats_extractor_choices = ClassChoices(
     "feats_extract",
