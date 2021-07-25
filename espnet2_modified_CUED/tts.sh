@@ -54,6 +54,7 @@ spk_embed_name=''    # Which X-vector to use, dump/xvector/spk_embed_name
 spk_embed_type='npy' # Use numpy or kaldi_ark (from downloaded x-vector)
 use_spk_model=false  # Whether to use a model to extract spk_embed
 spk_model_name=''    # Which spk_embed model to use
+spk_dataset_name=''  # Which dataset to use for speaker embedding model
 
 # Only used for feats_type != raw
 fs=16000          # Sampling rate.
@@ -291,7 +292,7 @@ if "${use_xvector}"; then
     fi
 fi
 if "${use_spk_model}"; then
-    tts_exp+="_${spk_model_name}"
+    tts_exp+="_${spk_model_name}_${spk_dataset_name}"
 fi
 
 
@@ -604,6 +605,17 @@ if ! "${skip_train}"; then
             _opts+="--valid_data_path_and_name_and_type ${_xvector_valid_dir}/xvector.scp,spembs,${spk_embed_type} "
         fi
 
+        # Add data input to speaker representation model, if needed
+        if "${use_spk_model}"; then
+            # train_args+="--spk_model_name ${spk_model_name} "
+            _spk_model_data_train_dir="${dumpdir}/spk_model_data/${spk_model_name}/${train_set}"
+            _spk_model_data_valid_dir="${dumpdir}/spk_model_data/${spk_model_name}/${valid_set}"
+            if [ "${spk_model_name}" = cmp ]; then
+                _opts+="--train_data_path_and_name_and_type ${_spk_model_data_train_dir}/${spk_dataset_name}_file_cmp.scp,spk_embed_data_cmp_SBD,cmp_binary_86_40_200 "
+                _opts+="--valid_data_path_and_name_and_type ${_spk_model_data_valid_dir}/${spk_dataset_name}_file_cmp.scp,spk_embed_data_cmp_SBD,cmp_binary_86_40_200 "
+            fi
+        fi
+
 
 
         # 1. Split the key file
@@ -637,7 +649,7 @@ if ! "${skip_train}"; then
         log "TTS collect_stats started... log: '${_logdir}/stats.*.log'"
         # shellcheck disable=SC2086
         ${train_cmd} JOB=1:"${_nj}" "${_logdir}"/stats.JOB.log \
-            ${python} -m espnet2.bin.tts_train \
+            ${python} -m espnet2_modified_CUED.bin.tts_train \
                 --collect_stats true \
                 --write_collected_feats "${write_collected_feats}" \
                 --use_preprocessor true \
@@ -850,11 +862,12 @@ if ! "${skip_train}"; then
 
         # Add data input to speaker representation model, if needed
         if "${use_spk_model}"; then
+            # train_args+="--spk_model_name ${spk_model_name} "
+            _spk_model_data_train_dir="${dumpdir}/spk_model_data/${spk_model_name}/${train_set}"
+            _spk_model_data_valid_dir="${dumpdir}/spk_model_data/${spk_model_name}/${valid_set}"
             if [ "${spk_model_name}" = cmp ]; then
-                _spk_model_data_train_dir="${dumpdir}/spk_model_data/${spk_model_name}/${train_set}"
-                _spk_model_data_valid_dir="${dumpdir}/spk_model_data/${spk_model_name}/${valid_set}"
-                _opts+="--train_data_path_and_name_and_type ${_spk_model_data_train_dir}/cmp.scp,spk_model_data_cmp,binary "
-                _opts+="--valid_data_path_and_name_and_type ${_spk_model_data_train_dir}/cmp.scp,spk_model_data_cmp,binary "
+                _opts+="--train_data_path_and_name_and_type ${_spk_model_data_train_dir}/${spk_dataset_name}_file_cmp.scp,spk_embed_data_cmp_SBD,cmp_binary_86_40_200 "
+                _opts+="--valid_data_path_and_name_and_type ${_spk_model_data_valid_dir}/${spk_dataset_name}_file_cmp.scp,spk_embed_data_cmp_SBD,cmp_binary_86_40_200 "
             fi
         fi
 
@@ -1000,6 +1013,15 @@ if ! "${skip_eval}"; then
                 _ex_opts+="--data_path_and_name_and_type ${_xvector_dir}/xvector.scp,spembs,${spk_embed_type} "
             fi
 
+            # Add data input to speaker representation model, if needed
+            if "${use_spk_model}"; then
+                # train_args+="--spk_model_name ${spk_model_name} "
+                _spk_model_data_dir="${dumpdir}/spk_model_data/${spk_model_name}/${dset}"
+                if [ "${spk_model_name}" = cmp ]; then
+                    _opts+="--data_path_and_name_and_type ${_spk_model_data_dir}/${spk_dataset_name}_file_cmp.scp,spk_embed_data_cmp_SBD,cmp_binary_86_40_200 "
+                fi
+            fi
+
             # 0. Copy feats_type
             cp "${_data}/feats_type" "${_dir}/feats_type"
 
@@ -1017,7 +1039,7 @@ if ! "${skip_eval}"; then
             log "Decoding started... log: '${_logdir}/tts_inference.*.log'"
             # shellcheck disable=SC2086
             ${_cmd} --gpu "${_ngpu}" JOB=1:"${_nj}" "${_logdir}"/tts_inference.JOB.log \
-                ${python} -m espnet2.bin.tts_inference \
+                ${python} -m espnet2_modified_CUED.bin.tts_inference \
                     --ngpu "${_ngpu}" \
                     --data_path_and_name_and_type "${_data}/text,text,text" \
                     --data_path_and_name_and_type ${_speech_data}/${_scp},speech,${_type} \
