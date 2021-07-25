@@ -21,13 +21,13 @@ from typeguard import check_argument_types
 
 from espnet.utils.cli_utils import get_commandline_args
 from espnet2.fileio.npy_scp import NpyScpWriter
-from espnet2.tasks.tts import TTSTask
+# from espnet2.tasks.tts import TTSTask
 from espnet2.torch_utils.device_funcs import to_device
 from espnet2.torch_utils.set_all_random_seed import set_all_random_seed
 from espnet2.tts.duration_calculator import DurationCalculator
 from espnet2.tts.fastspeech import FastSpeech
 from espnet2.tts.fastspeech2 import FastSpeech2
-from espnet2.tts.tacotron2 import Tacotron2
+# from espnet2.tts.tacotron2 import Tacotron2
 from espnet2.tts.transformer import Transformer
 from espnet2.utils import config_argparse
 from espnet2.utils.get_default_kwargs import get_default_kwargs
@@ -36,6 +36,9 @@ from espnet2.utils.nested_dict_action import NestedDictAction
 from espnet2.utils.types import str2bool
 from espnet2.utils.types import str2triple_str
 from espnet2.utils.types import str_or_none
+
+from espnet2_modified_CUED.tasks.tts import TTSTask
+from espnet2_modified_CUED.tts.tacotron2 import Tacotron2
 
 
 class Text2Speech:
@@ -130,6 +133,7 @@ class Text2Speech:
         speech: Union[torch.Tensor, np.ndarray] = None,
         durations: Union[torch.Tensor, np.ndarray] = None,
         spembs: Union[torch.Tensor, np.ndarray] = None,
+        spk_embed_data_cmp_SBD: Union[torch.Tensor, np.ndarray] = None,
     ):
         assert check_argument_types()
 
@@ -146,6 +150,8 @@ class Text2Speech:
             batch["durations"] = durations
         if spembs is not None:
             batch["spembs"] = spembs
+        if spk_embed_data_cmp_SBD is not None:
+            batch["spk_embed_data_cmp_SBD"] = spk_embed_data_cmp_SBD
 
         batch = to_device(batch, self.device)
         outs, outs_denorm, probs, att_ws = self.model.inference(
