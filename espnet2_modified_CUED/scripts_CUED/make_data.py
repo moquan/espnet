@@ -8,7 +8,7 @@
 
 import os, pickle, numpy
 import subprocess
-from frontend_mw545.modules import prepare_script_file_path, read_file_list, File_List_Selecter
+from frontend_mw545.modules import prepare_script_file_path, read_file_list, File_List_Selecter, List_Random_Loader
 from frontend_mw545.data_io import Data_Meta_List_File_IO
 
 class dv_y_configuration(object):
@@ -19,7 +19,8 @@ class dv_y_configuration(object):
         self.raw_data_dir = '/data/vectra2/tts/mw545/TorchTTS/espnet_py36/espnet/egs2/CUED_vctk/VCTK-Corpus' # currently: filelists  mel24  spk_embedding  txt  wav24  wav48
         self.file_id_list_dir = os.path.join(self.raw_data_dir, 'filelists/train_valid_test_SR')
 
-        self.orig_wav_dir = '/home/dawna/tts/import/VoiceBank/database/wav/Eng'
+        # self.orig_wav_dir = '/home/dawna/tts/import/VoiceBank/database/wav/Eng'
+        self.orig_wav_dir = '/home/dawna/tts/gad27/features24_noforcedbin_nopulsecorr_VoiceBank/usedwav/Eng'
         self.orig_txt_dir = '/home/dawna/tts/import/VoiceBank/database/txt/Eng'
 
         self.data_dirs_to_link = os.path.join(self.work_dir, 'data_speaker_206')
@@ -85,7 +86,9 @@ class Make_Corpus(object):
         # self.make_file_id_scp()
         # self.make_data_p320(run_alone=True)
         # self.make_corpus_dir()
-        self.link_wav24()
+        self.make_wav24()
+
+        # self.write_submit_file()
 
     def make_file_id_scp(self):
         orig_file_list_scp = '/home/dawna/tts/mw545/TorchDV/file_id_lists/file_id_list_used_cfg.scp'
@@ -120,12 +123,12 @@ class Make_Corpus(object):
                 orig_wav_dir = os.path.join(self.dv_y_cfg.orig_wav_dir, orig_speaker_id)
                 orig_txt_dir = os.path.join(self.dv_y_cfg.orig_txt_dir, orig_speaker_id)
 
-                write_file_name = '%s.sh' % speaker_id
+                write_file_name = 'bash_dir/%s.sh' % speaker_id
                 print('Writing to %s' % write_file_name)
                 with open(write_file_name, 'w') as f:
                     for file_id in file_id_list:
                         orig_file_id = unpad_speaker_id(file_id)
-                        orig_wav_file = os.path.join(orig_wav_dir, orig_file_id+'.wav')
+                        orig_wav_file = os.path.join(orig_wav_dir, orig_file_id+'.used.wav')
                         orig_txt_file = os.path.join(orig_txt_dir, orig_file_id+'.txt')
                         new_wav_file  = os.path.join(target_wav_dir, file_id+'.wav')
                         new_txt_file  = os.path.join(target_txt_dir, file_id+'.txt')
@@ -149,9 +152,10 @@ class Make_Corpus(object):
     def make_data_p320(self, run_alone=False):
         # Special speaker: 2 folders in original data; p320, p320b
         # Use p320_[1...140] and p320b_[141...]
-        orig_wav_p320  = '/home/dawna/tts/import/VoiceBank/database/wav/Eng/p320'
+        # Link wav and text
+        orig_wav_p320  = '/home/dawna/tts/gad27/features24_noforcedbin_nopulsecorr_VoiceBank/usedwav/Eng/p320'
         wav_p320_list  = os.listdir(orig_wav_p320)
-        orig_wav_p320b = '/home/dawna/tts/import/VoiceBank/database/wav/Eng/p320b'
+        orig_wav_p320b = '/home/dawna/tts/gad27/features24_noforcedbin_nopulsecorr_VoiceBank/usedwav/Eng/p320b'
         wav_p320b_list = os.listdir(orig_wav_p320b)
         orig_txt_p320  = '/home/dawna/tts/import/VoiceBank/database/txt/Eng/p320'
         txt_p320_list  = os.listdir(orig_txt_p320)
@@ -173,13 +177,13 @@ class Make_Corpus(object):
                 for file_name in wav_p320_list:
                     file_number = int(file_name.split('.')[0].split('_')[-1])
                     if file_number < 141:
-                        s_write = 'ln -s %s/%s %s/%s\n' % (orig_wav_p320, file_name, new_wav, file_name)
+                        s_write = 'ln -s %s/%s %s/%s\n' % (orig_wav_p320, file_name, new_wav, file_name.replace('used.wav','wav'))
                         f.write(s_write)
 
                 # Link >140 wav
                 # Actually, link all files in p320b
                 for file_name in wav_p320b_list:
-                    s_write = 'ln -s %s/%s %s/%s\n' % (orig_wav_p320b, file_name, new_wav, file_name.replace('p320b','p320'))
+                    s_write = 'ln -s %s/%s %s/%s\n' % (orig_wav_p320b, file_name, new_wav, file_name.replace('used.wav','wav').replace('p320b','p320'))
                     f.write(s_write)
 
             if True:
@@ -200,6 +204,12 @@ class Make_Corpus(object):
             print('Run %s' % write_file_name)
 
     def link_wav24(self):
+        '''
+        DO NOT USE
+        The wav24 here is wrong; wav24 generated from original wav48, before silence reduction
+        Correct wav48 is /home/dawna/tts/gad27/features24_noforcedbin_nopulsecorr_VoiceBank/usedwav/Eng
+        This matches label_state_align
+        '''
         orig_wav24_dir = '/data/vectra2/tts/mw545/TorchTTS/VCTK-Corpus/wav24'
         new_wav24_dir  = '/data/vectra2/tts/mw545/TorchTTS/espnet_py36/espnet/egs2/CUED_vctk/VCTK-Corpus/wav24'
 
@@ -222,9 +232,37 @@ class Make_Corpus(object):
                     s_write = 'ln -s %s %s\n' % (orig_wav_file, new_wav_file)
                     f.write(s_write)
 
+    def make_wav24(self):
+        wav48_dir = '/data/vectra2/tts/mw545/TorchTTS/espnet_py36/espnet/egs2/CUED_vctk/VCTK-Corpus/wav48'
+        wav24_dir = '/data/vectra2/tts/mw545/TorchTTS/espnet_py36/espnet/egs2/CUED_vctk/VCTK-Corpus/wav24'
 
+        Sox = '/home/dawna/tts/mw545/tools/sox-14.4.1/src/sox'
+        bash_dir = '/home/dawna/tts/mw545/TorchTTS/espnet_py36/espnet/espnet2_modified_CUED/scripts_CUED/bash_dir'
 
+        speaker_id_list = os.listdir(wav48_dir)
 
+        for speaker_id in speaker_id_list:
+            old_wav_dir = os.path.join(wav48_dir, speaker_id)
+            new_wav_dir = os.path.join(wav24_dir, speaker_id)
+            prepare_script_file_path(new_wav_dir)
+
+            file_list = os.listdir(old_wav_dir)
+            bash_file = os.path.join(bash_dir, speaker_id+'.sh')
+
+            with open(bash_file, 'w') as f:
+                for file_name in file_list:
+                    old_file_name = os.path.join(old_wav_dir, file_name)
+                    new_file_name = os.path.join(new_wav_dir, file_name)
+                    f.write(Sox+' '+old_file_name+' -r 24000 -b 16 -c 1 '+new_file_name+'\n')
+
+    def write_submit_file(self):
+        bash_dir = '/home/dawna/tts/mw545/TorchTTS/espnet_py36/espnet/espnet2_modified_CUED/scripts_CUED/bash_dir'
+        bash_file_list = os.listdir(bash_dir)
+        submit_file = os.path.join(bash_dir, 'submit.sh')
+        with open(submit_file, 'w') as f:
+            for bash_file in bash_file_list:
+                if (bash_file.split('.')[-1] == 'sh') and (bash_file != 'submit.sh'):
+                    f.write('qsub -cwd -S /bin/bash -o ${PWD} -e ${PWD} -l queue_priority=low,tests=0,mem_grab=0M,osrel=*,gpuclass=* %s \n'%bash_file)
 
 def write_train_valid_test_file_id_list(dv_y_cfg):
     '''
@@ -281,7 +319,6 @@ def write_train_valid_test_file_id_list(dv_y_cfg):
                 if int(file_number) < 81:
                     if int(file_number) > 40:
                         f.write(file_id+'\n')
-
 
 class Make_Data(object):
     '''
@@ -441,7 +478,6 @@ class Make_Data(object):
                 speaker_id = file_id.split('_')[0]
                 f.write('%s downloads/VCTK-Corpus/wav24/%s/%s.wav\n' % (file_id, speaker_id, file_id))
 
-
 class Make_X_Vector(object):
     '''
     Make directory named "dump/xvector"
@@ -467,12 +503,6 @@ class Make_X_Vector(object):
 
         self.x_vector_dir = os.path.join(self.dv_y_cfg.data_dirs_to_link, 'dump', 'xvector')
         prepare_script_file_path(self.x_vector_dir)
-        
-        self.DMLFIO = Data_Meta_List_File_IO()
-        self.file_id_list_num_sil_frame = self.DMLFIO.read_file_list_num_silence_frame()
-
-        self.FLS = File_List_Selecter()
-
 
     def run(self):
         # spk_embed_file = '/home/dawna/tts/mw545/TorchDV/dv_cmp_baseline/dvy_cmp_lr1E-04_fpu40_LRe512L_LRe512L_Lin512L_DV512S1B161T40D3440/dv_spk_dict.dat'
@@ -536,8 +566,101 @@ class Make_X_Vector(object):
             for speaker_id in speaker_id_list:
                 f.write('%s dump/xvector/%s/%s.npy\n' % (speaker_id, spk_embed_name, speaker_id))
 
+class Make_Spk_Embed_Model_Data(object):
+    '''
+    "${dumpdir}/spk_model_data/${spk_model_name}/${train_set}"
+    Make directory named "dump/spk_model_data"
+
+    But, we have many experiments, thus add another layer
+    dump/spk_model_data
+        |-- cmp
+            cmp_data_dir (norm_resil)
+            |-- tr_no_dev
+                same_file_cmp.scp 5_file_cmp.scp
+    '''
+    def __init__(self, dv_y_cfg):
+        super().__init__()
+        self.dv_y_cfg = dv_y_cfg
+
+        self.spk_model_data_dir = os.path.join(self.dv_y_cfg.data_dirs_to_link, 'dump', 'spk_model_data')
+        prepare_script_file_path(self.spk_model_data_dir)
+
+        self.FLS = File_List_Selecter()
+
+    def run(self):
+        spk_model_data_name = 'cmp'
+
+        exp_dir_name = os.path.join(self.spk_model_data_dir, spk_model_data_name)
+
+        if spk_model_data_name == 'cmp':
+            self.cmp_data_dir = os.path.join(exp_dir_name, 'cmp_data_dir')
+            # prepare_script_file_path(self.cmp_data_dir)
+            # self.prepare_cmp_dir(exp_dir_name)
+
+        for dir_name in ['tr_no_dev', 'dev', 'eval1']:
+            full_dir_name = os.path.join(exp_dir_name, dir_name)
+
+            if dir_name == 'tr_no_dev':
+                file_id_list_file = os.path.join(dv_y_cfg.file_id_list_dir,'tr_no_dev.scp')
+                file_id_list_file_SR = os.path.join(dv_y_cfg.file_id_list_dir,'tr_no_dev.scp')
+            if dir_name == 'dev':
+                file_id_list_file = os.path.join(dv_y_cfg.file_id_list_dir,'valid.scp')
+                file_id_list_file_SR = os.path.join(dv_y_cfg.file_id_list_dir,'valid_SR.scp')
+            if dir_name == 'eval1':
+                file_id_list_file = os.path.join(dv_y_cfg.file_id_list_dir,'test.scp')
+                file_id_list_file_SR = os.path.join(dv_y_cfg.file_id_list_dir,'test_SR.scp')
+
+            # self.write_same_file_cmp_scp(full_dir_name, file_id_list_file)
+            self.write_random_1_file_cmp_scp(full_dir_name, file_id_list_file, file_id_list_file_SR)
+
+    def prepare_cmp_dir(self, cmp_data_dir):
+        orig_cmp_dir = '/data/vectra2/tts/mw545/Data/exp_dirs/data_voicebank_16kHz/nn_cmp_resil_norm_86'
+        file_list_scp = os.path.join(self.dv_y_cfg.raw_data_dir, 'filelists/file_id_list_used_cfg.scp')
+        file_id_list = read_file_list(file_list_scp)
+
+        write_file_name = 'run.sh'
+        print('Writing to %s' % write_file_name)
+        with open(write_file_name, 'w') as f:
+            for file_id in file_id_list:
+                orig_file_name = os.path.join(orig_cmp_dir, '%s.cmp' % unpad_speaker_id(file_id) )
+                new_file_name  = os.path.join(self.cmp_data_dir, '%s.cmp' % file_id)
+                f.write('ln -s %s %s \n' %(orig_file_name, new_file_name))
 
 
+    def write_same_file_cmp_scp(self, full_dir_name, file_id_list_file):
+        '''
+        Write same_file_cmp.scp
+        '''
+        prepare_script_file_path(full_dir_name)
+        file_id_list = read_file_list(file_id_list_file)
+        cmp_data_dir = 'dump/spk_model_data/cmp/cmp_data_dir'
+
+        write_file_name = os.path.join(full_dir_name, 'same_file_cmp.scp')
+        print('Writing to %s' % write_file_name)
+        with open(write_file_name, 'w') as f:
+            for file_id in file_id_list:
+                f.write('%s dump/spk_model_data/cmp/cmp_data_dir/%s.cmp\n'% (file_id, file_id))
+
+    def write_random_1_file_cmp_scp(self, full_dir_name, file_id_list_file, file_id_list_file_SR):
+        '''
+        Write random_1_file_cmp.scp
+        For each file_id in file_id_list_file, draw a random file from file_id_list_file_SR, of the same speaker_id
+        '''
+        prepare_script_file_path(full_dir_name)
+        file_id_list    = read_file_list(file_id_list_file)
+        file_id_list_SR = read_file_list(file_id_list_file_SR)
+        cmp_data_dir = 'dump/spk_model_data/cmp/cmp_data_dir'
+
+        speaker_id_list = self.dv_y_cfg.speaker_id_list_dict['all']
+        file_id_list_SR_dict = self.FLS.sort_by_speaker_list(file_id_list_SR, speaker_id_list)
+
+        write_file_name = os.path.join(full_dir_name, 'random_1_file_cmp.scp')
+        print('Writing to %s' % write_file_name)
+        with open(write_file_name, 'w') as f:
+            for file_id_1 in file_id_list:
+                speaker_id = file_id_1.split('_')[0]
+                file_id_2  = numpy.random.choice(file_id_list_SR_dict[speaker_id], 1, replace=False)[0]
+                f.write('%s dump/spk_model_data/cmp/cmp_data_dir/%s.cmp\n'% (file_id_1, file_id_2))
 
 
 
@@ -559,6 +682,9 @@ def setup_2_stage_exp_directory(dv_y_cfg):
         f.write('cd egs2/%s/%s\n' % (dataset_name, exp_name))
         f.write('cp ../../mini_an4/tts1/run.sh .\n')
         f.write('ln -s %s/* .\n' % dv_y_cfg.data_dirs_to_link)
+        f.write('rm tts.sh\n')
+        f.write('ln -s ../../../espnet2_modified_CUED/tts.sh\n')
+        f.write('mkdir log\n')
 
         # Scripts in previous vctk exp dir
         f.write('cp ../../vctk/tts_xvector/run.sh .\n')
@@ -586,8 +712,8 @@ def setup_integrated_exp_directory(dv_y_cfg):
         f.write('cp ../../mini_an4/tts1/run.sh .\n')
         f.write('ln -s %s/* .\n' % dv_y_cfg.data_dirs_to_link)
         f.write('rm tts.sh\n')
-        f.write('ln -s ../scripts/tts.sh\n')
-        
+        f.write('ln -s ../../../espnet2_modified_CUED/tts.sh\n')
+        f.write('mkdir log\n')
 
         # Scripts in previous vctk exp dir
         f.write('cp ../../vctk/tts_gst/run.sh .\n')
@@ -615,8 +741,167 @@ def temp_change():
             with open(file_name, 'w') as f_2:
                 f_2.writelines(line_list_2)
 
+# temp_change()
 
 
+
+
+class Make_dir_listening_test(object):
+    """
+    This class makes a directory
+    sample_dir
+      |-- title_1
+        |-- file_id_1.wav file_id_2.wav
+      |-- title_2
+    The wav files are full-path links
+    """
+    def __init__(self):
+        super(Make_dir_listening_test, self).__init__()
+
+        self.file_dir_list = {}
+        self.file_id_list = ['p026_003','p141_003','p210_003','p178_003','p290_003']
+        self.sample_tool_dir = '/home/dawna/tts/mw545/tools/weblisteningtest'
+        self.sample_root_dir = os.path.join(self.sample_tool_dir, 'samples-mw545')
+
+    def run(self):
+        self.file_dir_type = {}
+        self.file_dir_type['orig'] = ['/data/vectra2/tts/mw545/TorchTTS/espnet_py36/espnet/egs2/CUED_vctk/data_speaker_206/downloads/VCTK-Corpus/wav24','speaker_id/file_id.wav']
+
+        self.setting_7()
+
+        self.make_dirs()
+        self.write_command()
+
+    def setting_1(self):
+        self.table_name = 'Voicebank_ESPNet2_Tacotron2'
+        self.work_dir = '/home/dawna/tts/mw545/TorchTTS/espnet_py36/espnet/egs2/CUED_vctk/tts_2_stage'
+        self.title_list = ['orig','vocoder_pwg','sincnet_pwg','xvector_pwg','vocoder','sincnet','xvector']
+        self.file_dir_type['vocoder_pwg'] = [os.path.join(self.work_dir, 'exp/tts_train_raw_phn_tacotron_g2p_en_no_space_cmp/decode_valid.loss.best/eval1/wav_pwg'), 'file_id_gen.wav']
+        self.file_dir_type['sincnet_pwg'] = [os.path.join(self.work_dir, 'exp/tts_train_raw_phn_tacotron_g2p_en_no_space_sincnet/decode_valid.loss.best/eval1/wav_pwg'), 'file_id_gen.wav']
+        self.file_dir_type['xvector_pwg'] = [os.path.join(self.work_dir, 'exp/tts_train_raw_phn_tacotron_g2p_en_no_space_xvector/decode_valid.loss.best/eval1/wav_pwg'), 'file_id_gen.wav']
+        self.file_dir_type['vocoder'] = [os.path.join(self.work_dir, 'exp/tts_train_raw_phn_tacotron_g2p_en_no_space_cmp/decode_valid.loss.best/eval1/wav'), 'file_id.wav']
+        self.file_dir_type['sincnet'] = [os.path.join(self.work_dir, 'exp/tts_train_raw_phn_tacotron_g2p_en_no_space_sincnet/decode_valid.loss.best/eval1/wav'), 'file_id.wav']
+        self.file_dir_type['xvector'] = [os.path.join(self.work_dir, 'exp/tts_train_raw_phn_tacotron_g2p_en_no_space_xvector/decode_valid.loss.best/eval1/wav'), 'file_id.wav']
+        
+
+    def setting_2(self):
+        self.setting_1()
+        self.table_name = 'Voicebank_ESPNet2_Tacotron2_v'
+        self.title_list = ['orig','vocoder_pwg','vocoder','sincnet_pwg','sincnet','xvector_pwg','xvector']
+
+    def setting_3(self):
+        self.setting_1()
+        self.table_name = 'Voicebank_ESPNet2_Tacotron2'
+        self.title_list = ['orig','vocoder_pwg','sincnet_pwg','xvector_pwg']
+
+    def setting_4(self):
+        self.table_name = 'Voicebank_ESPNet2_Tacotron2_vocoder'
+        self.work_dir = '/home/dawna/tts/mw545/TorchTTS/espnet_py36/espnet/egs2/CUED_vctk/tts_2_stage'
+        self.title_list = ['orig','valid_best','valid_ave','train_best','train_ave']
+
+        self.file_dir_type['valid_best'] = [os.path.join(self.work_dir, 'exp/tts_train_raw_phn_tacotron_g2p_en_no_space_cmp/decode_valid.loss.best/eval1/wav_pwg'), 'file_id_gen.wav']
+        self.file_dir_type['valid_ave']  = [os.path.join(self.work_dir, 'exp/tts_train_raw_phn_tacotron_g2p_en_no_space_cmp/decode_valid.loss.ave/eval1/wav_pwg'),  'file_id_gen.wav']
+        self.file_dir_type['train_best'] = [os.path.join(self.work_dir, 'exp/tts_train_raw_phn_tacotron_g2p_en_no_space_cmp/decode_train.loss.best/eval1/wav_pwg'), 'file_id_gen.wav']
+        self.file_dir_type['train_ave']  = [os.path.join(self.work_dir, 'exp/tts_train_raw_phn_tacotron_g2p_en_no_space_cmp/decode_train.loss.ave/eval1/wav_pwg'),  'file_id_gen.wav']
+
+    def setting_5(self):
+        self.table_name = 'Voicebank_ESPNet2_Tacotron2_xvector'
+        self.work_dir = '/home/dawna/tts/mw545/TorchTTS/espnet_py36/espnet/egs2/CUED_vctk/tts_2_stage'
+        self.title_list = ['orig','valid_best','valid_ave','train_best','train_ave']
+
+        self.file_dir_type['valid_best'] = [os.path.join(self.work_dir, 'exp/tts_train_raw_phn_tacotron_g2p_en_no_space_xvector/decode_valid.loss.best/eval1/wav_pwg'), 'file_id_gen.wav']
+        self.file_dir_type['valid_ave']  = [os.path.join(self.work_dir, 'exp/tts_train_raw_phn_tacotron_g2p_en_no_space_xvector/decode_valid.loss.ave/eval1/wav_pwg'),  'file_id_gen.wav']
+        self.file_dir_type['train_best'] = [os.path.join(self.work_dir, 'exp/tts_train_raw_phn_tacotron_g2p_en_no_space_xvector/decode_train.loss.best/eval1/wav_pwg'), 'file_id_gen.wav']
+        self.file_dir_type['train_ave']  = [os.path.join(self.work_dir, 'exp/tts_train_raw_phn_tacotron_g2p_en_no_space_xvector/decode_train.loss.ave/eval1/wav_pwg'),  'file_id_gen.wav']
+
+    def setting_6(self):
+        self.table_name = 'Voicebank_ESPNet2_Tacotron2_gst'
+        self.work_dir = '/home/dawna/tts/mw545/TorchTTS/espnet_py36/espnet/egs2/CUED_vctk/tts_integrated'
+        self.title_list = ['orig','valid_best','valid_ave','train_best','train_ave']
+
+        self.file_dir_type['valid_best'] = [os.path.join(self.work_dir, 'exp/tts_train_raw_phn_tacotron_g2p_en_no_space_gst/decode_valid.loss.best/eval1/wav_pwg'), 'file_id_gen.wav']
+        self.file_dir_type['valid_ave']  = [os.path.join(self.work_dir, 'exp/tts_train_raw_phn_tacotron_g2p_en_no_space_gst/decode_valid.loss.ave/eval1/wav_pwg'),  'file_id_gen.wav']
+        self.file_dir_type['train_best'] = [os.path.join(self.work_dir, 'exp/tts_train_raw_phn_tacotron_g2p_en_no_space_gst/decode_train.loss.best/eval1/wav_pwg'), 'file_id_gen.wav']
+        self.file_dir_type['train_ave']  = [os.path.join(self.work_dir, 'exp/tts_train_raw_phn_tacotron_g2p_en_no_space_gst/decode_train.loss.ave/eval1/wav_pwg'),  'file_id_gen.wav']
+
+    def setting_7(self):
+        self.table_name = 'Voicebank_ESPNet2_Tacotron2_train_best'
+        self.work_dir_2_s = '/home/dawna/tts/mw545/TorchTTS/espnet_py36/espnet/egs2/CUED_vctk/tts_2_stage'
+        self.work_dir_int = '/home/dawna/tts/mw545/TorchTTS/espnet_py36/espnet/egs2/CUED_vctk/tts_integrated'
+        self.title_list = ['orig','cmp','sincnet','xvector','gst']
+
+        self.file_dir_type['cmp'] = [os.path.join(self.work_dir_2_s, 'exp/tts_train_raw_phn_tacotron_g2p_en_no_space_cmp/decode_train.loss.best/eval1/wav_pwg'), 'file_id_gen.wav']
+        self.file_dir_type['sincnet'] = [os.path.join(self.work_dir_2_s, 'exp/tts_train_raw_phn_tacotron_g2p_en_no_space_sincnet/decode_train.loss.best/eval1/wav_pwg'), 'file_id_gen.wav']
+        self.file_dir_type['xvector'] = [os.path.join(self.work_dir_2_s, 'exp/tts_train_raw_phn_tacotron_g2p_en_no_space_xvector/decode_train.loss.best/eval1/wav_pwg'), 'file_id_gen.wav']
+        self.file_dir_type['gst'] = [os.path.join(self.work_dir_int, 'exp/tts_train_raw_phn_tacotron_g2p_en_no_space_gst/decode_train.loss.best/eval1/wav_pwg'), 'file_id_gen.wav']
+
+    def make_date_str(self):
+        '''
+        yyyy_mm_dd format
+        '''
+        from datetime import datetime
+        return datetime.today().strftime('%Y_%m_%d')
+
+    def make_dirs(self):
+        date_str = self.make_date_str()
+        self.sample_dir = os.path.join(self.sample_root_dir, date_str+ '_' + self.table_name)
+        prepare_script_file_path(self.sample_dir)
+        run_script = os.path.join(self.sample_dir, 'run_1.sh')
+        
+        with open(run_script, 'w') as f:
+            for title_name in self.title_list:
+                title_dir = os.path.join(self.sample_dir, title_name)
+                prepare_script_file_path(title_dir)
+
+                for file_id in self.file_id_list:
+                    orig_file_name = self.make_file_name(file_id, self.file_dir_type[title_name])
+                    new_file_name  = os.path.join(title_dir, file_id+'.wav')
+                    f.write('ln -s %s %s\n' %(orig_file_name, new_file_name))
+
+        print('bash %s \n' % run_script)
+
+    def make_file_name(self, file_id, file_dir_type):
+        dir_name  = file_dir_type[0]
+        file_type = file_dir_type[1]
+        new_file_name = file_type.replace('file_id',file_id)
+        if 'speaker_id' in file_type:
+            s = file_id.split('_')[0]
+            new_file_name = new_file_name.replace('speaker_id',s)
+
+        new_file_name_full = os.path.join(dir_name, new_file_name)
+        return new_file_name_full
+
+    def write_command(self):
+        '''e.g.
+        python demotable_html_wav.py --idexp "^(p[0-9]+_[0-9]+)"  --tablename VoiceBank_Tacotron2 \
+        /home/dawna/tts/mw545/Export_Temp/output_inference/orig /home/dawna/tts/mw545/Export_Temp/output_inference/mel_true /home/dawna/tts/mw545/Export_Temp/output_inference/mel_gen  \
+        --titles original  mel-true mel-gen-tacotron'
+        '''
+
+        # run_script = os.path.join(self.sample_dir, 'run_2.sh')
+        run_script = 'run_2.sh'
+        with open(run_script, 'w') as f:
+            f.write('\nCurrent working dir is %s\n' % os.path.dirname(os.path.realpath(__file__)))
+            f.write('\n'*2)
+            f.write('cd %s \n' % self.sample_tool_dir)
+
+            f.write('python demotable_html_wav.py --idexp "^(p[0-9]+_[0-9]+)"  --tablename %s \\ \n' % self.table_name)
+            dir_list = [self.sample_dir + '/' + t for t in self.title_list]
+            f.write(' '.join(dir_list) + ' \\ \n')
+            f.write('--titles %s \n' %(' '.join(self.title_list)))
+
+            date_str = self.make_date_str()
+            weblink_dir = os.path.join(self.sample_tool_dir, 'Samples_Webpage_Dir', date_str+ '_' + self.table_name)
+            f.write('mkdir %s \n' % weblink_dir)
+            f.write('mv %s %s.html %s/ \n' % (self.table_name, self.table_name, weblink_dir))
+            f.write('\n'*2)
+            f.write('Add this line to %s/Samples_Webpage_Dir/2021_07_17_Voicebank_ESPNet2_Tacotron2.html: \n' % self.sample_tool_dir)
+            # f.write('<li><a href="samples-mw545/%s/%s.html">%s</a> </li>\n' % (date_str+ '_' + self.table_name, self.table_name, self.table_name))
+            f.write('<li><a href="%s/%s.html">%s</a> </li>\n' % (date_str+ '_' + self.table_name, self.table_name, self.table_name))
+
+            f.write('\nGo back to %s ? \n\n' % os.path.dirname(os.path.realpath(__file__)))
+
+        print('cat %s \n' % run_script)
 
 
 
@@ -626,10 +911,12 @@ if __name__ == '__main__':
     # process_runner = Make_Corpus(dv_y_cfg)
     # process_runner = Make_Data(dv_y_cfg)
     # process_runner = Make_X_Vector(dv_y_cfg)
-    # process_runner.run()
+    # process_runner = Make_dir_listening_test()
+    process_runner = Make_Spk_Embed_Model_Data(dv_y_cfg)
+    process_runner.run()
 
     # write_train_valid_test_file_id_list(dv_y_cfg)
-    setup_integrated_exp_directory(dv_y_cfg)
+    # setup_integrated_exp_directory(dv_y_cfg)
     
     pass
 

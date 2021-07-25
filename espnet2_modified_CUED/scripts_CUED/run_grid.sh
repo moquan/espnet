@@ -1,7 +1,7 @@
 echo Running on $HOSTNAME
 
 # export WorkDir=debug_nausicaa
-export WorkDir=/home/dawna/tts/mw545/TorchTTS/espnet_py36/espnet/egs2/CUED_vctk/scripts
+export WorkDir=/home/dawna/tts/mw545/TorchTTS/espnet_py36/espnet/espnet2_modified_CUED/scripts_CUED
 
 #export VENV=py36torch12nau
 #export CUDA_HOME=/usr/local/cuda-9.2
