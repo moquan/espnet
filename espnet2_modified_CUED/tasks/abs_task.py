@@ -51,16 +51,16 @@ from espnet2.torch_utils.pytorch_version import pytorch_cudnn_version
 from espnet2.torch_utils.set_all_random_seed import set_all_random_seed
 from espnet2.train.abs_espnet_model import AbsESPnetModel
 from espnet2.train.class_choices import ClassChoices
-from espnet2.train.dataset import AbsDataset
-from espnet2.train.dataset import DATA_TYPES
-from espnet2.train.dataset import ESPnetDataset
+# from espnet2.train.dataset import AbsDataset
+# from espnet2.train.dataset import DATA_TYPES
+# from espnet2.train.dataset import ESPnetDataset
 from espnet2.train.distributed_utils import DistributedOption
 from espnet2.train.distributed_utils import free_port
 from espnet2.train.distributed_utils import get_master_port
 from espnet2.train.distributed_utils import get_node_rank
 from espnet2.train.distributed_utils import get_num_nodes
 from espnet2.train.distributed_utils import resolve_distributed_mode
-from espnet2.train.iterable_dataset import IterableESPnetDataset
+# from espnet2.train.iterable_dataset import IterableESPnetDataset
 from espnet2.train.reporter import Reporter
 from espnet2.train.trainer import Trainer
 from espnet2.utils.build_dataclass import build_dataclass
@@ -74,6 +74,11 @@ from espnet2.utils.types import str2triple_str
 from espnet2.utils.types import str_or_int
 from espnet2.utils.types import str_or_none
 from espnet2.utils.yaml_no_alias_safe_dump import yaml_no_alias_safe_dump
+
+from espnet2_modified_CUED.train.dataset import AbsDataset
+from espnet2_modified_CUED.train.dataset import DATA_TYPES
+from espnet2_modified_CUED.train.dataset import ESPnetDataset
+from espnet2_modified_CUED.train.iterable_dataset import IterableESPnetDataset
 
 if LooseVersion(torch.__version__) >= LooseVersion("1.5.0"):
     from torch.multiprocessing.spawn import ProcessContext
