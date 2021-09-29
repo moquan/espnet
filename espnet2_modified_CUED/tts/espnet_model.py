@@ -122,6 +122,7 @@ class ESPnetTTSModel(AbsESPnetModel):
         energy: torch.Tensor = None,
         energy_lengths: torch.Tensor = None,
         spembs: torch.Tensor = None,
+        **kwargs,
     ) -> Dict[str, torch.Tensor]:
         if self.feats_extract is not None:
             feats, feats_lengths = self.feats_extract(speech, speech_lengths)
