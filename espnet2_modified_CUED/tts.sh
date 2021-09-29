@@ -54,7 +54,11 @@ spk_embed_name=''    # Which X-vector to use, dump/xvector/spk_embed_name
 spk_embed_type='npy' # Use numpy or kaldi_ark (from downloaded x-vector)
 use_spk_model=false  # Whether to use a model to extract spk_embed
 spk_model_name=''    # Which spk_embed model to use
-spk_dataset_name=''  # Which dataset to use for speaker embedding model
+train_spk_dataset_name=''  # Which dataset to use for speaker embedding model during training
+
+inference_spk_dataset_name=''  # Which dataset to use for speaker embedding model during inference
+inference_spk_dataset_type=''  # Type of dataset to use for speaker embedding model during inference
+generate_wav=true   # Whether to generate waveform
 
 # Only used for feats_type != raw
 fs=16000          # Sampling rate.
@@ -96,6 +100,8 @@ inference_model=train.loss.ave.pth # Model path for decoding.
                                    # inference_model=valid.loss.ave.pth
 griffin_lim_iters=4 # the number of iterations of Griffin-Lim.
 download_model=""   # Download a model from Model Zoo and use it for decoding.
+
+inference_use_teacher_forcing=false
 
 # [Task dependent] Set the datadir name created by local/data.sh
 train_set=""     # Name of training set.
@@ -143,6 +149,11 @@ Options:
     --spk_embed_type   # Use numpy or kaldi_ark (from downloaded x-vector) (default="npy").
     --use_spk_model    # Whether to use a model to extract spk_embed (default=false)
     --spk_model_name   # Which spk_embed model to use
+    --train_spk_dataset_name # Which dataset to use for speaker embedding model during training (default="random_1")
+
+    --inference_spk_dataset_name # Which dataset to use for speaker embedding model during inference (default="random_1")
+    --inference_spk_dataset_type # Type of dataset to use for speaker embedding model during inference (default="cmp_binary_86_40")
+    --generate_wav # Whether to generate waveform (default=true)
 
     --fs               # Sampling rate (default="${fs}").
     --fmax             # Maximum frequency of Mel basis (default="${fmax}").
@@ -179,6 +190,8 @@ Options:
     --inference_model   # Model path for decoding (default=${inference_model}).
     --griffin_lim_iters # The number of iterations of Griffin-Lim (default=${griffin_lim_iters}).
     --download_model    # Download a model from Model Zoo and use it for decoding (default="${download_model}").
+
+    --inference_use_teacher_forcing # Use teacher forcing during inference (default="false").
 
     # [Task dependent] Set the datadir name created by local/data.sh.
     --train_set          # Name of training set (required).
@@ -292,7 +305,7 @@ if "${use_xvector}"; then
     fi
 fi
 if "${use_spk_model}"; then
-    tts_exp+="_${spk_model_name}_${spk_dataset_name}"
+    tts_exp+="_${spk_model_name}_${train_spk_dataset_name}"
 fi
 
 
@@ -611,8 +624,8 @@ if ! "${skip_train}"; then
             _spk_model_data_train_dir="${dumpdir}/spk_model_data/${spk_model_name}/${train_set}"
             _spk_model_data_valid_dir="${dumpdir}/spk_model_data/${spk_model_name}/${valid_set}"
             if [ "${spk_model_name}" = cmp ]; then
-                _opts+="--train_data_path_and_name_and_type ${_spk_model_data_train_dir}/${spk_dataset_name}_file_cmp.scp,spk_embed_data_cmp_SBD,cmp_binary_86_40_200 "
-                _opts+="--valid_data_path_and_name_and_type ${_spk_model_data_valid_dir}/${spk_dataset_name}_file_cmp.scp,spk_embed_data_cmp_SBD,cmp_binary_86_40_200 "
+                _opts+="--train_data_path_and_name_and_type ${_spk_model_data_train_dir}/${train_spk_dataset_name}_file_cmp.scp,spk_embed_data_cmp_SBD,cmp_binary_86_40 "
+                _opts+="--valid_data_path_and_name_and_type ${_spk_model_data_valid_dir}/${train_spk_dataset_name}_file_cmp.scp,spk_embed_data_cmp_SBD,cmp_binary_86_40 "
             fi
         fi
 
@@ -866,8 +879,8 @@ if ! "${skip_train}"; then
             _spk_model_data_train_dir="${dumpdir}/spk_model_data/${spk_model_name}/${train_set}"
             _spk_model_data_valid_dir="${dumpdir}/spk_model_data/${spk_model_name}/${valid_set}"
             if [ "${spk_model_name}" = cmp ]; then
-                _opts+="--train_data_path_and_name_and_type ${_spk_model_data_train_dir}/${spk_dataset_name}_file_cmp.scp,spk_embed_data_cmp_SBD,cmp_binary_86_40_200 "
-                _opts+="--valid_data_path_and_name_and_type ${_spk_model_data_valid_dir}/${spk_dataset_name}_file_cmp.scp,spk_embed_data_cmp_SBD,cmp_binary_86_40_200 "
+                _opts+="--train_data_path_and_name_and_type ${_spk_model_data_train_dir}/${train_spk_dataset_name}_file_cmp.scp,spk_embed_data_cmp_SBD,cmp_binary_86_40 "
+                _opts+="--valid_data_path_and_name_and_type ${_spk_model_data_valid_dir}/${train_spk_dataset_name}_file_cmp.scp,spk_embed_data_cmp_SBD,cmp_binary_86_40 "
             fi
         fi
 
@@ -990,7 +1003,7 @@ if ! "${skip_eval}"; then
         for dset in ${test_sets}; do
             _data="${data_feats}/${dset}"
             _speech_data="${_data}"
-            _dir="${tts_exp}/${inference_tag}/${dset}"
+            _dir="${tts_exp}/${inference_tag}/${inference_spk_dataset_name}/${dset}"
             _logdir="${_dir}/log"
             mkdir -p "${_logdir}"
 
@@ -1018,7 +1031,7 @@ if ! "${skip_eval}"; then
                 # train_args+="--spk_model_name ${spk_model_name} "
                 _spk_model_data_dir="${dumpdir}/spk_model_data/${spk_model_name}/${dset}"
                 if [ "${spk_model_name}" = cmp ]; then
-                    _opts+="--data_path_and_name_and_type ${_spk_model_data_dir}/${spk_dataset_name}_file_cmp.scp,spk_embed_data_cmp_SBD,cmp_binary_86_40_200 "
+                    _opts+="--data_path_and_name_and_type ${_spk_model_data_dir}/${inference_spk_dataset_name}_file_cmp.scp,spk_embed_data_cmp_SBD,${inference_spk_dataset_type} "
                 fi
             fi
 
@@ -1048,6 +1061,8 @@ if ! "${skip_eval}"; then
                     --train_config "${tts_exp}"/config.yaml \
                     --output_dir "${_logdir}"/output.JOB \
                     --vocoder_conf griffin_lim_iters="${griffin_lim_iters}" \
+                    --use_teacher_forcing ${inference_use_teacher_forcing} \
+                    --generate_wav ${generate_wav} \
                     ${_opts} ${_ex_opts} ${inference_args}
 
             # 4. Concatenates the output files from each jobs
@@ -1061,10 +1076,12 @@ if ! "${skip_eval}"; then
             for i in $(seq "${_nj}"); do
                  cat "${_logdir}/output.${i}/speech_shape/speech_shape"
             done | LC_ALL=C sort -k1 > "${_dir}/speech_shape"
-            for i in $(seq "${_nj}"); do
-                mv -u "${_logdir}/output.${i}"/wav/*.wav "${_dir}"/wav
-                rm -rf "${_logdir}/output.${i}"/wav
-            done
+            if ${generate_wav}; then
+                for i in $(seq "${_nj}"); do
+                    mv -u "${_logdir}/output.${i}"/wav/*.wav "${_dir}"/wav
+                    rm -rf "${_logdir}/output.${i}"/wav
+                done
+            fi
             if [ -e "${_logdir}/output.${_nj}/att_ws" ]; then
                 mkdir -p "${_dir}"/att_ws
                 for i in $(seq "${_nj}"); do
