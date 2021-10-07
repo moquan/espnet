@@ -41,14 +41,9 @@ from espnet2_modified_CUED.tasks.tts import TTSTask
 from espnet2_modified_CUED.tts.tacotron2 import Tacotron2
 
 
-class Text2Speech:
-    """Speech2Text class
-
-    Examples:
-        >>> import soundfile
-        >>> text2speech = Text2Speech("config.yml", "model.pth")
-        >>> wav = text2speech("Hello World")[0]
-        >>> soundfile.write("out.wav", wav.numpy(), text2speech.fs, "PCM_16")
+class Gen_Spk_Embed:
+    """
+    Generate Speaker Embedding class
 
     """
 
@@ -134,46 +129,21 @@ class Text2Speech:
     @torch.no_grad()
     def __call__(
         self,
-        text: Union[str, torch.Tensor, np.ndarray],
-        speech: Union[torch.Tensor, np.ndarray] = None,
-        durations: Union[torch.Tensor, np.ndarray] = None,
-        spembs: Union[torch.Tensor, np.ndarray] = None,
         spk_embed_data_cmp_SBD: Union[torch.Tensor, np.ndarray] = None,
+        **kwargs
     ):
         assert check_argument_types()
 
-        if self.use_speech and speech is None:
-            raise RuntimeError("missing required argument: 'speech'")
-
-        if isinstance(text, str):
-            # str -> np.ndarray
-            text = self.preprocess_fn("<dummy>", {"text": text})["text"]
-        batch = {"text": text}
-        if speech is not None:
-            batch["speech"] = speech
-        if durations is not None:
-            batch["durations"] = durations
-        if spembs is not None:
-            batch["spembs"] = spembs
+        batch = {}
         if spk_embed_data_cmp_SBD is not None:
             batch["spk_embed_data_cmp_SBD"] = spk_embed_data_cmp_SBD
 
         batch = to_device(batch, self.device)
-        outs, outs_denorm, probs, att_ws = self.model.inference(
+        spk_embed = self.model.gen_lambda_SD(
             **batch, **self.decode_config
         )
 
-        if att_ws is not None:
-            duration, focus_rate = self.duration_calculator(att_ws)
-        else:
-            duration, focus_rate = None, None
-
-        if self.spc2wav is not None:
-            wav = torch.tensor(self.spc2wav(outs_denorm.cpu().numpy()))
-        else:
-            wav = None
-
-        return wav, outs, outs_denorm, probs, att_ws, duration, focus_rate
+        return spk_embed
 
     @property
     def fs(self) -> Optional[int]:
@@ -237,7 +207,7 @@ def inference(
     set_all_random_seed(seed)
 
     # 2. Build model
-    text2speech = Text2Speech(
+    gen_spk_embed = Gen_Spk_Embed(
         train_config=train_config,
         model_file=model_file,
         threshold=threshold,
@@ -255,7 +225,7 @@ def inference(
     )
 
     # 3. Build data-iterator
-    if not text2speech.use_speech:
+    if not gen_spk_embed.use_speech:
         data_path_and_name_and_type = list(
             filter(lambda x: x[1] != "speech", data_path_and_name_and_type)
         )
@@ -265,22 +235,15 @@ def inference(
         batch_size=batch_size,
         key_file=key_file,
         num_workers=num_workers,
-        preprocess_fn=TTSTask.build_preprocess_fn(text2speech.train_args, False),
-        collate_fn=TTSTask.build_collate_fn(text2speech.train_args, False),
+        preprocess_fn=TTSTask.build_preprocess_fn(gen_spk_embed.train_args, False),
+        collate_fn=TTSTask.build_collate_fn(gen_spk_embed.train_args, False),
         allow_variable_data_keys=allow_variable_data_keys,
         inference=True,
     )
 
     # 6. Start for-loop
     output_dir = Path(output_dir)
-    (output_dir / "norm").mkdir(parents=True, exist_ok=True)
-    (output_dir / "denorm").mkdir(parents=True, exist_ok=True)
-    (output_dir / "speech_shape").mkdir(parents=True, exist_ok=True)
-    (output_dir / "wav").mkdir(parents=True, exist_ok=True)
-    (output_dir / "att_ws").mkdir(parents=True, exist_ok=True)
-    (output_dir / "probs").mkdir(parents=True, exist_ok=True)
-    (output_dir / "durations").mkdir(parents=True, exist_ok=True)
-    (output_dir / "focus_rates").mkdir(parents=True, exist_ok=True)
+    (output_dir / "spk_embed").mkdir(parents=True, exist_ok=True)
 
     # Lazy load to avoid the backend error
     matplotlib.use("Agg")
@@ -288,17 +251,9 @@ def inference(
     from matplotlib.ticker import MaxNLocator
 
     with NpyScpWriter(
-        output_dir / "norm",
-        output_dir / "norm/feats.scp",
-    ) as norm_writer, NpyScpWriter(
-        output_dir / "denorm", output_dir / "denorm/feats.scp"
-    ) as denorm_writer, open(
-        output_dir / "speech_shape/speech_shape", "w"
-    ) as shape_writer, open(
-        output_dir / "durations/durations", "w"
-    ) as duration_writer, open(
-        output_dir / "focus_rates/focus_rates", "w"
-    ) as focus_rate_writer:
+        output_dir / "spk_embed",
+        output_dir / "spk_embed/feats.scp",
+    ) as spk_embed_writer:
         for idx, (keys, batch) in enumerate(loader, 1):
             assert isinstance(batch, dict), type(batch)
             assert all(isinstance(s, str) for s in keys), keys
@@ -310,94 +265,22 @@ def inference(
             batch = {k: v[0] for k, v in batch.items() if not k.endswith("_lengths")}
 
             start_time = time.perf_counter()
-            wav, outs, outs_denorm, probs, att_ws, duration, focus_rate = text2speech(
-                **batch
-            )
+
+            spk_embed = gen_spk_embed(**batch)
+
 
             key = keys[0]
             insize = next(iter(batch.values())).size(0) + 1
             logging.info(
                 "inference speed = {:.1f} frames / sec.".format(
-                    int(outs.size(0)) / (time.perf_counter() - start_time)
+                    int(spk_embed.size(0)) / (time.perf_counter() - start_time)
                 )
             )
-            logging.info(f"{key} (size:{insize}->{outs.size(0)})")
-            if outs.size(0) == insize * maxlenratio:
+            logging.info(f"{key} (size:{insize}->{spk_embed.size(0)})")
+            if spk_embed.size(0) == insize * maxlenratio:
                 logging.warning(f"output length reaches maximum length ({key}).")
 
-            norm_writer[key] = outs.cpu().numpy()
-            shape_writer.write(f"{key} " + ",".join(map(str, outs.shape)) + "\n")
-
-            denorm_writer[key] = outs_denorm.cpu().numpy()
-
-            if duration is not None:
-                # Save duration and fucus rates
-                duration_writer.write(
-                    f"{key} " + " ".join(map(str, duration.cpu().numpy())) + "\n"
-                )
-                focus_rate_writer.write(f"{key} {float(focus_rate):.5f}\n")
-
-                # Plot attention weight
-                att_ws = att_ws.cpu().numpy()
-
-                if att_ws.ndim == 2:
-                    att_ws = att_ws[None][None]
-                elif att_ws.ndim != 4:
-                    raise RuntimeError(f"Must be 2 or 4 dimension: {att_ws.ndim}")
-
-                w, h = plt.figaspect(att_ws.shape[0] / att_ws.shape[1])
-                fig = plt.Figure(
-                    figsize=(
-                        w * 1.3 * min(att_ws.shape[0], 2.5),
-                        h * 1.3 * min(att_ws.shape[1], 2.5),
-                    )
-                )
-                fig.suptitle(f"{key}")
-                axes = fig.subplots(att_ws.shape[0], att_ws.shape[1])
-                if len(att_ws) == 1:
-                    axes = [[axes]]
-                for ax, att_w in zip(axes, att_ws):
-                    for ax_, att_w_ in zip(ax, att_w):
-                        ax_.imshow(att_w_.astype(np.float32), aspect="auto")
-                        ax_.set_xlabel("Input")
-                        ax_.set_ylabel("Output")
-                        ax_.xaxis.set_major_locator(MaxNLocator(integer=True))
-                        ax_.yaxis.set_major_locator(MaxNLocator(integer=True))
-
-                fig.set_tight_layout({"rect": [0, 0.03, 1, 0.95]})
-                fig.savefig(output_dir / f"att_ws/{key}.png")
-                fig.clf()
-
-            if probs is not None:
-                # Plot stop token prediction
-                probs = probs.cpu().numpy()
-
-                fig = plt.Figure()
-                ax = fig.add_subplot(1, 1, 1)
-                ax.plot(probs)
-                ax.set_title(f"{key}")
-                ax.set_xlabel("Output")
-                ax.set_ylabel("Stop probability")
-                ax.set_ylim(0, 1)
-                ax.grid(which="both")
-
-                fig.set_tight_layout(True)
-                fig.savefig(output_dir / f"probs/{key}.png")
-                fig.clf()
-
-            # TODO(kamo): Write scp
-            if wav is not None:
-                sf.write(
-                    f"{output_dir}/wav/{key}.wav", wav.numpy(), text2speech.fs, "PCM_16"
-                )
-
-    # remove duration related files if attention is not provided
-    if att_ws is None:
-        shutil.rmtree(output_dir / "att_ws")
-        shutil.rmtree(output_dir / "durations")
-        shutil.rmtree(output_dir / "focus_rates")
-    if probs is None:
-        shutil.rmtree(output_dir / "probs")
+            spk_embed_writer[key] = spk_embed.cpu().numpy()
 
 
 def get_parser():
