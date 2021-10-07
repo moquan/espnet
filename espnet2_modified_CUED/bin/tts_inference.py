@@ -60,6 +60,7 @@ class Text2Speech:
         minlenratio: float = 0.0,
         maxlenratio: float = 10.0,
         use_teacher_forcing: bool = False,
+        generate_wav: bool = True,
         use_att_constraint: bool = False,
         backward_window: int = 1,
         forward_window: int = 3,
@@ -125,6 +126,10 @@ class Text2Speech:
         else:
             self.spc2wav = None
             logging.info("Vocoder is not used because vocoder_conf is not sufficient")
+
+        if not generate_wav:
+            self.spc2wav = None
+            logging.info("Waveform generation is turned off")
 
     @torch.no_grad()
     def __call__(
@@ -204,6 +209,7 @@ def inference(
     minlenratio: float,
     maxlenratio: float,
     use_teacher_forcing: bool,
+    generate_wav: bool,
     use_att_constraint: bool,
     backward_window: int,
     forward_window: int,
@@ -238,6 +244,7 @@ def inference(
         maxlenratio=maxlenratio,
         minlenratio=minlenratio,
         use_teacher_forcing=use_teacher_forcing,
+        generate_wav=generate_wav,
         use_att_constraint=use_att_constraint,
         backward_window=backward_window,
         forward_window=forward_window,
@@ -518,6 +525,12 @@ def get_parser():
         type=str2bool,
         default=False,
         help="Whether to use teacher forcing",
+    )
+    group.add_argument(
+        "--generate_wav",
+        type=str2bool,
+        default=True,
+        help="Whether to generate waveform",
     )
     parser.add_argument(
         "--speed_control_alpha",
