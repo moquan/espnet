@@ -1108,10 +1108,136 @@ else
     log "Skip the evaluation stages"
 fi
 
+if ! "${skip_eval}"; then
+    if [ ${stage} -le 8 ] && [ ${stop_stage} -ge 8 ]; then
+        log "Stage 8: Decoding speaker embeddings: training_dir=${tts_exp}"
+
+        if ${gpu_inference}; then
+            _cmd="${cuda_cmd}"
+            _ngpu=1
+        else
+            _cmd="${decode_cmd}"
+            _ngpu=0
+        fi
+
+        _opts=
+        if [ -n "${inference_config}" ]; then
+            _opts+="--config ${inference_config} "
+        fi
+
+        if [ -z "${teacher_dumpdir}" ]; then
+            _feats_type="$(<${data_feats}/${train_set}/feats_type)"
+        else
+            if [ -e "${teacher_dumpdir}/${train_set}/probs" ]; then
+                # Knowledge distillation
+                _feats_type=fbank
+            else
+                # Teacher forcing
+                _feats_type="$(<${data_feats}/${train_set}/feats_type)"
+            fi
+        fi
+
+        # NOTE(kamo): If feats_type=raw, vocoder_conf is unnecessary
+        _scp=wav.scp
+        if [[ "${audio_format}" == *ark* ]]; then
+            _type=kaldi_ark
+        else
+            # "sound" supports "wav", "flac", etc.
+            _type=sound
+        fi
+        if [ "${_feats_type}" = fbank ] || [ "${_feats_type}" = stft ]; then
+            _opts+="--vocoder_conf n_fft=${n_fft} "
+            _opts+="--vocoder_conf n_shift=${n_shift} "
+            _opts+="--vocoder_conf win_length=${win_length} "
+            _opts+="--vocoder_conf fs=${fs} "
+            _scp=feats.scp
+            _type=kaldi_ark
+        fi
+        if [ "${_feats_type}" = fbank ]; then
+            _opts+="--vocoder_conf n_mels=${n_mels} "
+            _opts+="--vocoder_conf fmin=${fmin} "
+            _opts+="--vocoder_conf fmax=${fmax} "
+        fi
+
+        log "Generate '${tts_exp}/${inference_tag}/run.sh'. You can resume the process from stage 8 using this script"
+        mkdir -p "${tts_exp}/${inference_tag}"; echo "${run_args} --stage 8 \"\$@\"; exit \$?" > "${tts_exp}/${inference_tag}/run.sh"; chmod +x "${tts_exp}/${inference_tag}/run.sh"
+
+
+        for dset in ${test_sets}; do
+            _data="${data_feats}/${dset}"
+            _speech_data="${_data}"
+            _dir="${tts_exp}/${inference_tag}/${inference_spk_dataset_name}/${dset}"
+            _logdir="${_dir}/log"
+            mkdir -p "${_logdir}"
+
+            _ex_opts=""
+            if [ -n "${teacher_dumpdir}" ]; then
+                # Use groundtruth of durations
+                _teacher_dir="${teacher_dumpdir}/${dset}"
+                _ex_opts+="--data_path_and_name_and_type ${_teacher_dir}/durations,durations,text_int "
+                # Overwrite speech arguments if use knowledge distillation
+                if [ -e "${teacher_dumpdir}/${train_set}/probs" ]; then
+                    _speech_data="${_teacher_dir}/denorm"
+                    _scp=feats.scp
+                    _type=npy
+                fi
+            fi
+
+            # Add data input to speaker representation model, if needed
+            if "${use_spk_model}"; then
+                # train_args+="--spk_model_name ${spk_model_name} "
+                _spk_model_data_dir="${dumpdir}/spk_model_data/${spk_model_name}/${dset}"
+                if [ "${spk_model_name}" = cmp ]; then
+                    _opts+="--data_path_and_name_and_type ${_spk_model_data_dir}/${inference_spk_dataset_name}_file_cmp.scp,spk_embed_data_cmp_SBD,${inference_spk_dataset_type} "
+                fi
+            fi
+
+            # 0. Copy feats_type
+            cp "${_data}/feats_type" "${_dir}/feats_type"
+
+            # 1. Split the key file
+            key_file=${_spk_model_data_dir}/${inference_spk_dataset_name}_file_cmp.scp
+            split_scps=""
+            _nj=$(min "${inference_nj}" "$(<${key_file} wc -l)")
+            for n in $(seq "${_nj}"); do
+                split_scps+=" ${_logdir}/keys.${n}.scp"
+            done
+            # shellcheck disable=SC2086
+            utils/split_scp.pl "${key_file}" ${split_scps}
+
+            # 3. Submit decoding jobs
+            log "Decoding started... log: '${_logdir}/tts_inference.*.log'"
+            # shellcheck disable=SC2086
+            ${_cmd} --gpu "${_ngpu}" JOB=1:"${_nj}" "${_logdir}"/tts_inference.JOB.log \
+                ${python} -m espnet2_modified_CUED.bin.tts_inference_spk_embed \
+                    --ngpu "${_ngpu}" \
+                    --data_path_and_name_and_type "${_spk_model_data_dir}/${inference_spk_dataset_name}_file_cmp.scp,text,text" \
+                    --key_file "${_logdir}"/keys.JOB.scp \
+                    --model_file "${tts_exp}"/"${inference_model}" \
+                    --train_config "${tts_exp}"/config.yaml \
+                    --output_dir "${_logdir}"/output.JOB \
+                    --vocoder_conf griffin_lim_iters="${griffin_lim_iters}" \
+                    --use_teacher_forcing ${inference_use_teacher_forcing} \
+                    --generate_wav ${generate_wav} \
+                    ${_opts} ${_ex_opts} ${inference_args}
+
+            # 4. Concatenates the output files from each jobs
+            mkdir -p "${_dir}"/spk_embed
+            for i in $(seq "${_nj}"); do
+                 cat "${_logdir}/output.${i}/spk_embed/feats.scp"
+            done | LC_ALL=C sort -k1 > "${_dir}/spk_embed/feats.scp"
+        done
+    fi
+else
+    log "Skip the evaluation stages"
+fi
+
+##########################################################################################
+
 
 packed_model="${tts_exp}/${tts_exp##*/}_${inference_model%.*}.zip"
 if ! "${skip_upload}"; then
-    if [ ${stage} -le 8 ] && [ ${stop_stage} -ge 8 ]; then
+    if [ ${stage} -le 28 ] && [ ${stop_stage} -ge 28 ]; then
         log "Stage 8: Pack model: ${packed_model}"
 
         _opts=""
@@ -1141,7 +1267,7 @@ if ! "${skip_upload}"; then
     fi
 
 
-    if [ ${stage} -le 9 ] && [ ${stop_stage} -ge 9 ]; then
+    if [ ${stage} -le 29 ] && [ ${stop_stage} -ge 29 ]; then
         log "Stage 9: Upload model to Zenodo: ${packed_model}"
 
         # To upload your model, you need to do:
