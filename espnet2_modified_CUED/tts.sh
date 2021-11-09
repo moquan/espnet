@@ -291,7 +291,7 @@ if [ -z "${tts_stats_dir}" ]; then
         tts_stats_dir+="_${spk_embed_name}"
     fi
     if "${use_spk_model}"; then
-        tts_stats_dir+="_${spk_model_name}"
+        tts_stats_dir+="_${spk_model_name}_${train_spk_dataset_name}"
     fi    
 fi
 # The directory used for training commands
@@ -1222,7 +1222,7 @@ if ! "${skip_eval}"; then
                     ${_opts} ${_ex_opts} ${inference_args}
 
             # 4. Concatenates the output files from each jobs
-            mkdir -p "${_dir}"/spk_embed
+            mkdir -p "${_dir}/spk_embed"
             for i in $(seq "${_nj}"); do
                  cat "${_logdir}/output.${i}/spk_embed/feats.scp"
             done | LC_ALL=C sort -k1 > "${_dir}/spk_embed/feats.scp"
