@@ -212,3 +212,9 @@ class ESPnetTTSModel(AbsESPnetModel):
         else:
             outs_denorm = outs
         return outs, outs_denorm, probs, att_ws
+
+    def gen_lambda_SD(
+        self,
+        **kwargs
+        ):
+        return self.tts.gen_lambda_SD(**kwargs)
