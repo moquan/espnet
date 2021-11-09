@@ -243,10 +243,10 @@ DATA_TYPES = {
         "   utterance_id_B 10,4\n"
         "   ...",
     ),
-    "cmp_binary_\\d+_\\d+_\\d+": dict(
+    "cmp_binary_\\d+_\\d+": dict(
         func=cmp_reader,
         kwargs=["loader_type"],
-        help="binary file format. e.g. cmp_binary_86_40_400, feat_dim, window_size, total_length"
+        help="binary file format. e.g. cmp_binary_86_40, feat_dim, window_size"
         "\n\n"
         "   utterance_id_A /some/where/a.cmp\n"
         "   utterance_id_B /some/where/b.cmp\n"
