@@ -138,7 +138,7 @@ class Text2Speech:
         speech: Union[torch.Tensor, np.ndarray] = None,
         durations: Union[torch.Tensor, np.ndarray] = None,
         spembs: Union[torch.Tensor, np.ndarray] = None,
-        spk_embed_data_cmp_SBD: Union[torch.Tensor, np.ndarray] = None,
+        spk_embed_data_SBD: Union[torch.Tensor, np.ndarray] = None,
     ):
         assert check_argument_types()
 
@@ -155,8 +155,8 @@ class Text2Speech:
             batch["durations"] = durations
         if spembs is not None:
             batch["spembs"] = spembs
-        if spk_embed_data_cmp_SBD is not None:
-            batch["spk_embed_data_cmp_SBD"] = spk_embed_data_cmp_SBD
+        if spk_embed_data_SBD is not None:
+            batch["spk_embed_data_SBD"] = spk_embed_data_SBD
 
         batch = to_device(batch, self.device)
         outs, outs_denorm, probs, att_ws = self.model.inference(
