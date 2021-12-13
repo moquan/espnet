@@ -55,9 +55,11 @@ spk_embed_type='npy' # Use numpy or kaldi_ark (from downloaded x-vector)
 use_spk_model=false  # Whether to use a model to extract spk_embed
 spk_model_name=''    # Which spk_embed model to use
 train_spk_dataset_name=''  # Which dataset to use for speaker embedding model during training
+train_spk_dataset_type=''  # Type of dataset to use for speaker embedding model during training
 
 inference_spk_dataset_name=''  # Which dataset to use for speaker embedding model during inference
 inference_spk_dataset_type=''  # Type of dataset to use for speaker embedding model during inference
+inference_keep_feats=true  # Whether to keep feature files
 generate_wav=true   # Whether to generate waveform
 
 # Only used for feats_type != raw
@@ -150,9 +152,11 @@ Options:
     --use_spk_model    # Whether to use a model to extract spk_embed (default=false)
     --spk_model_name   # Which spk_embed model to use
     --train_spk_dataset_name # Which dataset to use for speaker embedding model during training (default="random_1")
+    --train_spk_dataset_type # Type of dataset to use for speaker embedding model during training (default="cmp_binary_86_40")
 
     --inference_spk_dataset_name # Which dataset to use for speaker embedding model during inference (default="random_1")
     --inference_spk_dataset_type # Type of dataset to use for speaker embedding model during inference (default="cmp_binary_86_40")
+    --inference_keep_feats # Whether to keep feature files (default=true)
     --generate_wav # Whether to generate waveform (default=true)
 
     --fs               # Sampling rate (default="${fs}").
@@ -288,7 +292,7 @@ if [ -z "${tts_stats_dir}" ]; then
         tts_stats_dir+="_${g2p}"
     fi
     if "${use_xvector}"; then
-        tts_stats_dir+="_${spk_embed_name}"
+        tts_stats_dir+="_${spk_embed_name}_${train_spk_dataset_name}"
     fi
     if "${use_spk_model}"; then
         tts_stats_dir+="_${spk_model_name}_${train_spk_dataset_name}"
@@ -299,7 +303,7 @@ if [ -z "${tts_exp}" ]; then
     tts_exp="${expdir}/tts_${tag}"
 fi
 if "${use_xvector}"; then
-    tts_exp+="_${spk_embed_name}"
+    tts_exp+="_${spk_embed_name}_${train_spk_dataset_name}"
     if [ "${spk_embed_name}" = xvector ]; then
         spk_embed_type=kaldi_ark
     fi
@@ -614,8 +618,8 @@ if ! "${skip_train}"; then
         if "${use_xvector}"; then
             _xvector_train_dir="${dumpdir}/xvector/${spk_embed_name}/${train_set}"
             _xvector_valid_dir="${dumpdir}/xvector/${spk_embed_name}/${valid_set}"
-            _opts+="--train_data_path_and_name_and_type ${_xvector_train_dir}/xvector.scp,spembs,${spk_embed_type} "
-            _opts+="--valid_data_path_and_name_and_type ${_xvector_valid_dir}/xvector.scp,spembs,${spk_embed_type} "
+            _opts+="--train_data_path_and_name_and_type ${_xvector_train_dir}/${train_spk_dataset_name}.scp,spembs,${spk_embed_type} "
+            _opts+="--valid_data_path_and_name_and_type ${_xvector_valid_dir}/${train_spk_dataset_name}.scp,spembs,${spk_embed_type} "
         fi
 
         # Add data input to speaker representation model, if needed
@@ -624,8 +628,8 @@ if ! "${skip_train}"; then
             _spk_model_data_train_dir="${dumpdir}/spk_model_data/${spk_model_name}/${train_set}"
             _spk_model_data_valid_dir="${dumpdir}/spk_model_data/${spk_model_name}/${valid_set}"
             if [ "${spk_model_name}" = cmp ]; then
-                _opts+="--train_data_path_and_name_and_type ${_spk_model_data_train_dir}/${train_spk_dataset_name}_file_cmp.scp,spk_embed_data_cmp_SBD,cmp_binary_86_40 "
-                _opts+="--valid_data_path_and_name_and_type ${_spk_model_data_valid_dir}/${train_spk_dataset_name}_file_cmp.scp,spk_embed_data_cmp_SBD,cmp_binary_86_40 "
+                _opts+="--train_data_path_and_name_and_type ${_spk_model_data_train_dir}/${train_spk_dataset_name}_file_cmp.scp,spk_embed_data_SBD,${train_spk_dataset_type} "
+                _opts+="--valid_data_path_and_name_and_type ${_spk_model_data_valid_dir}/${train_spk_dataset_name}_file_cmp.scp,spk_embed_data_SBD,${train_spk_dataset_type} "
             fi
         fi
 
@@ -869,8 +873,8 @@ if ! "${skip_train}"; then
         if "${use_xvector}"; then
             _xvector_train_dir="${dumpdir}/xvector/${spk_embed_name}/${train_set}"
             _xvector_valid_dir="${dumpdir}/xvector/${spk_embed_name}/${valid_set}"
-            _opts+="--train_data_path_and_name_and_type ${_xvector_train_dir}/xvector.scp,spembs,${spk_embed_type} "
-            _opts+="--valid_data_path_and_name_and_type ${_xvector_valid_dir}/xvector.scp,spembs,${spk_embed_type} "
+            _opts+="--train_data_path_and_name_and_type ${_xvector_train_dir}/${train_spk_dataset_name}.scp,spembs,${spk_embed_type} "
+            _opts+="--valid_data_path_and_name_and_type ${_xvector_valid_dir}/${train_spk_dataset_name}.scp,spembs,${spk_embed_type} "
         fi
 
         # Add data input to speaker representation model, if needed
@@ -879,8 +883,8 @@ if ! "${skip_train}"; then
             _spk_model_data_train_dir="${dumpdir}/spk_model_data/${spk_model_name}/${train_set}"
             _spk_model_data_valid_dir="${dumpdir}/spk_model_data/${spk_model_name}/${valid_set}"
             if [ "${spk_model_name}" = cmp ]; then
-                _opts+="--train_data_path_and_name_and_type ${_spk_model_data_train_dir}/${train_spk_dataset_name}_file_cmp.scp,spk_embed_data_cmp_SBD,cmp_binary_86_40 "
-                _opts+="--valid_data_path_and_name_and_type ${_spk_model_data_valid_dir}/${train_spk_dataset_name}_file_cmp.scp,spk_embed_data_cmp_SBD,cmp_binary_86_40 "
+                _opts+="--train_data_path_and_name_and_type ${_spk_model_data_train_dir}/${train_spk_dataset_name}_file_cmp.scp,spk_embed_data_SBD,${train_spk_dataset_type} "
+                _opts+="--valid_data_path_and_name_and_type ${_spk_model_data_valid_dir}/${train_spk_dataset_name}_file_cmp.scp,spk_embed_data_SBD,${train_spk_dataset_type} "
             fi
         fi
 
@@ -1023,7 +1027,7 @@ if ! "${skip_eval}"; then
             # Add X-vector to the inputs if needed
             if "${use_xvector}"; then
                 _xvector_dir="${dumpdir}/xvector/${spk_embed_name}/${dset}"
-                _ex_opts+="--data_path_and_name_and_type ${_xvector_dir}/xvector.scp,spembs,${spk_embed_type} "
+                _ex_opts+="--data_path_and_name_and_type ${_xvector_dir}/${inference_spk_dataset_name}.scp,spembs,${spk_embed_type} "
             fi
 
             # Add data input to speaker representation model, if needed
@@ -1031,7 +1035,7 @@ if ! "${skip_eval}"; then
                 # train_args+="--spk_model_name ${spk_model_name} "
                 _spk_model_data_dir="${dumpdir}/spk_model_data/${spk_model_name}/${dset}"
                 if [ "${spk_model_name}" = cmp ]; then
-                    _opts+="--data_path_and_name_and_type ${_spk_model_data_dir}/${inference_spk_dataset_name}_file_cmp.scp,spk_embed_data_cmp_SBD,${inference_spk_dataset_type} "
+                    _opts+="--data_path_and_name_and_type ${_spk_model_data_dir}/${inference_spk_dataset_name}_file_cmp.scp,spk_embed_data_SBD,${inference_spk_dataset_type} "
                 fi
             fi
 
@@ -1064,44 +1068,54 @@ if ! "${skip_eval}"; then
                     --use_teacher_forcing ${inference_use_teacher_forcing} \
                     --generate_wav ${generate_wav} \
                     ${_opts} ${_ex_opts} ${inference_args}
-
-            # 4. Concatenates the output files from each jobs
-            mkdir -p "${_dir}"/{norm,denorm,wav}
-            for i in $(seq "${_nj}"); do
-                 cat "${_logdir}/output.${i}/norm/feats.scp"
-            done | LC_ALL=C sort -k1 > "${_dir}/norm/feats.scp"
-            for i in $(seq "${_nj}"); do
-                 cat "${_logdir}/output.${i}/denorm/feats.scp"
-            done | LC_ALL=C sort -k1 > "${_dir}/denorm/feats.scp"
-            for i in $(seq "${_nj}"); do
-                 cat "${_logdir}/output.${i}/speech_shape/speech_shape"
-            done | LC_ALL=C sort -k1 > "${_dir}/speech_shape"
-            if ${generate_wav}; then
+            
+            if ${inference_keep_feats}; then
+                # 4. Concatenates the output files from each jobs
+                mkdir -p "${_dir}"/{norm,denorm,wav}
                 for i in $(seq "${_nj}"); do
-                    mv -u "${_logdir}/output.${i}"/wav/*.wav "${_dir}"/wav
+                     cat "${_logdir}/output.${i}/norm/feats.scp"
+                done | LC_ALL=C sort -k1 > "${_dir}/norm/feats.scp"
+                for i in $(seq "${_nj}"); do
+                     cat "${_logdir}/output.${i}/denorm/feats.scp"
+                done | LC_ALL=C sort -k1 > "${_dir}/denorm/feats.scp"
+                for i in $(seq "${_nj}"); do
+                     cat "${_logdir}/output.${i}/speech_shape/speech_shape"
+                done | LC_ALL=C sort -k1 > "${_dir}/speech_shape"
+                if ${generate_wav}; then
+                    for i in $(seq "${_nj}"); do
+                        mv -u "${_logdir}/output.${i}"/wav/*.wav "${_dir}"/wav
+                        rm -rf "${_logdir}/output.${i}"/wav
+                    done
+                fi
+                if [ -e "${_logdir}/output.${_nj}/att_ws" ]; then
+                    mkdir -p "${_dir}"/att_ws
+                    for i in $(seq "${_nj}"); do
+                         cat "${_logdir}/output.${i}/durations/durations"
+                    done | LC_ALL=C sort -k1 > "${_dir}/durations"
+                    for i in $(seq "${_nj}"); do
+                         cat "${_logdir}/output.${i}/focus_rates/focus_rates"
+                    done | LC_ALL=C sort -k1 > "${_dir}/focus_rates"
+                    for i in $(seq "${_nj}"); do
+                        mv -u "${_logdir}/output.${i}"/att_ws/*.png "${_dir}"/att_ws
+                        rm -rf "${_logdir}/output.${i}"/att_ws
+                    done
+                fi
+                if [ -e "${_logdir}/output.${_nj}/probs" ]; then
+                    mkdir -p "${_dir}"/probs
+                    for i in $(seq "${_nj}"); do
+                        mv -u "${_logdir}/output.${i}"/probs/*.png "${_dir}"/probs
+                        rm -rf "${_logdir}/output.${i}"/probs
+                    done
+                fi
+            else
+                # 5. Remove feature files to free up disk space
+                for i in $(seq "${_nj}"); do
+                    rm -rf "${_logdir}/output.${i}"/norm
+                    rm -rf "${_logdir}/output.${i}"/denorm
                     rm -rf "${_logdir}/output.${i}"/wav
                 done
             fi
-            if [ -e "${_logdir}/output.${_nj}/att_ws" ]; then
-                mkdir -p "${_dir}"/att_ws
-                for i in $(seq "${_nj}"); do
-                     cat "${_logdir}/output.${i}/durations/durations"
-                done | LC_ALL=C sort -k1 > "${_dir}/durations"
-                for i in $(seq "${_nj}"); do
-                     cat "${_logdir}/output.${i}/focus_rates/focus_rates"
-                done | LC_ALL=C sort -k1 > "${_dir}/focus_rates"
-                for i in $(seq "${_nj}"); do
-                    mv -u "${_logdir}/output.${i}"/att_ws/*.png "${_dir}"/att_ws
-                    rm -rf "${_logdir}/output.${i}"/att_ws
-                done
-            fi
-            if [ -e "${_logdir}/output.${_nj}/probs" ]; then
-                mkdir -p "${_dir}"/probs
-                for i in $(seq "${_nj}"); do
-                    mv -u "${_logdir}/output.${i}"/probs/*.png "${_dir}"/probs
-                    rm -rf "${_logdir}/output.${i}"/probs
-                done
-            fi
+
         done
     fi
 else
@@ -1188,7 +1202,7 @@ if ! "${skip_eval}"; then
                 # train_args+="--spk_model_name ${spk_model_name} "
                 _spk_model_data_dir="${dumpdir}/spk_model_data/${spk_model_name}/${dset}"
                 if [ "${spk_model_name}" = cmp ]; then
-                    _opts+="--data_path_and_name_and_type ${_spk_model_data_dir}/${inference_spk_dataset_name}_file_cmp.scp,spk_embed_data_cmp_SBD,${inference_spk_dataset_type} "
+                    _opts+="--data_path_and_name_and_type ${_spk_model_data_dir}/${inference_spk_dataset_name}_file_cmp.scp,spk_embed_data_SBD,${inference_spk_dataset_type} "
                 fi
             fi
 
