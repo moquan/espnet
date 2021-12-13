@@ -31,7 +31,7 @@ from espnet2.fileio.read_text import read_2column_text
 from espnet2.fileio.sound_scp import SoundScpReader
 from espnet2.utils.sized_dict import SizedDict
 
-from espnet2_modified_CUED.train.dataset_readers import cmp_reader
+from espnet2_modified_CUED.train.dataset_readers import cmp_reader, spk_embed_reader
 
 
 class AdapterForSoundScpReader(collections.abc.Mapping):
@@ -246,10 +246,19 @@ DATA_TYPES = {
     "cmp_binary_\\d+_\\d+": dict(
         func=cmp_reader,
         kwargs=["loader_type"],
-        help="binary file format. e.g. cmp_binary_86_40, feat_dim, window_size"
+        help="e.g. cmp_binary_86_40, feat_dim, window_size"
         "\n\n"
         "   utterance_id_A /some/where/a.cmp\n"
         "   utterance_id_B /some/where/b.cmp\n"
+        "   ...",
+    ),
+    "spk_embed_\\d+": dict(
+        func=spk_embed_reader,
+        kwargs=["loader_type"],
+        help="e.g. spk_embed_512, spk_embed_dim"
+        "\n\n"
+        "   utterance_id_A /some/where/\n"
+        "   utterance_id_B /some/where/\n"
         "   ...",
     ),
 }
