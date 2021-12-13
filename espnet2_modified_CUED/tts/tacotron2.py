@@ -8,6 +8,8 @@ from typing import Dict
 from typing import Sequence
 from typing import Tuple
 
+import numpy
+
 import torch
 import torch.nn.functional as F
 from typeguard import check_argument_types
@@ -121,6 +123,7 @@ class Tacotron2(AbsTTS):
         spk_embed_integration_type: str = "concat",
         use_spk_model: bool = False,
         spk_model_name: str = '',
+        spk_model_integration_type: str = "add",
         gst_tokens: int = 10,
         gst_heads: int = 4,
         gst_conv_layers: int = 6,
@@ -187,6 +190,8 @@ class Tacotron2(AbsTTS):
             padding_idx=padding_idx,
         )
 
+        dec_idim = eunits
+
         if self.use_spk_model:
             if self.spk_model_name == 'gst':
                 self.gst = StyleEncoder(
@@ -201,20 +206,29 @@ class Tacotron2(AbsTTS):
                     gru_layers=gst_gru_layers,
                     gru_units=gst_gru_units,
                 )
-            if self.spk_model_name == 'cmp':
+            else:
                 self.spk_embed_model = Build_spk_embed_y_model(
                     self.spk_model_name
                 )
+            self.spk_model_integration_type = spk_model_integration_type
+            if spk_model_integration_type == 'concat':
+                dec_idim += 512
 
         if spk_embed_dim is None:
-            dec_idim = eunits
+            # dec_idim = eunits
+            pass
         elif spk_embed_integration_type == "concat":
-            dec_idim = eunits + spk_embed_dim
+            # Possible to concatenate both
+            dec_idim += spk_embed_dim
         elif spk_embed_integration_type == "add":
-            dec_idim = eunits
+            # TODO: decide later what to do when one is added and the other is concatenated
+            # So far, it seems an odd way to operate
+
+            # dec_idim = eunits
             self.projection = torch.nn.Linear(self.spk_embed_dim, eunits)
         else:
             raise ValueError(f"{spk_embed_integration_type} is not supported.")
+        # dec_idim = eunits + 512
 
         if atype == "location":
             att = AttLoc(dec_idim, dunits, adim, aconv_chans, aconv_filts)
@@ -273,7 +287,9 @@ class Tacotron2(AbsTTS):
         speech: torch.Tensor,
         speech_lengths: torch.Tensor,
         spembs: torch.Tensor = None,
-        spk_embed_data_cmp_SBD: torch.Tensor = None,
+        spk_embed_data_SBD: torch.Tensor = None,
+        spk_embed_data_SBD_lengths: torch.Tensor = None,
+        **kwargs
     ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor], torch.Tensor]:
         """Calculate forward propagation.
 
@@ -310,7 +326,7 @@ class Tacotron2(AbsTTS):
 
         # calculate tacotron2 outputs
         after_outs, before_outs, logits, att_ws = self._forward(
-            xs, ilens, ys, olens, spembs, spk_embed_data_cmp_SBD
+            xs, ilens, ys, olens, spembs, spk_embed_data_SBD, spk_embed_data_SBD_lengths
         )
 
         # modify mod part of groundtruth
@@ -364,37 +380,48 @@ class Tacotron2(AbsTTS):
         ys: torch.Tensor,
         olens: torch.Tensor,
         spembs: torch.Tensor,
-        spk_embed_data_cmp_SBD: torch.Tensor,
+        spk_embed_data_SBD: torch.Tensor,
+        spk_embed_data_SBD_lengths: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         hs, hlens = self.enc(xs, ilens)
-        if self.spk_model_name=='gst':
-            style_embs = self.gst(ys)
-            hs = hs + style_embs.unsqueeze(1)
-        if self.spk_model_name=='cmp':
-            if spk_embed_data_cmp_SBD is None:
-                spk_embed_data_cmp_SBD = self.make_zero_spk_embed_data_cmp(hs)
-            spk_embs = self.spk_embed_model.gen_lambda_SD({'h':spk_embed_data_cmp_SBD})
-            hs = hs + spk_embs.unsqueeze(1)
+        if self.use_spk_model:
+            if self.spk_model_name=='gst':
+                style_embs = self.gst(ys)
+                spk_embs = style_embs
+                # hs = hs + style_embs.unsqueeze(1)
+            elif self.spk_model_name=='cmp':
+                output_mask_SB = self.make_mask_SB_from_lengths_S(spk_embed_data_SBD_lengths)
+                spk_embs = self.spk_embed_model.gen_lambda_SD({'h':spk_embed_data_SBD, 'out_lens':spk_embed_data_SBD_lengths, 'output_mask_S_B': output_mask_SB })
+
+            if self.spk_model_integration_type == 'add':
+                hs = hs + spk_embs.unsqueeze(1)
+            elif self.spk_model_integration_type == 'concat':
+                spk_embs = spk_embs.unsqueeze(1).expand(-1, hs.size(1), -1)
+                hs = torch.cat([hs, spk_embs], dim=-1)
         if self.spk_embed_dim is not None:
             hs = self._integrate_with_spk_embed(hs, spembs)
         return self.dec(hs, hlens, ys)
 
-    def make_zero_spk_embed_data_cmp_SBD(self, hs):
-        '''
-        Temporary function, make fake data input for cmp spk_embed_model
-        '''
-        S = hs.size()[0]
-        B = 161
-        D = 3440
-        spk_embed_data_cmp_SBD = torch.zeros(S,B,D, dtype=torch.float, device=torch.device("cuda:0"))
-        return spk_embed_data_cmp_SBD
+    def make_mask_SB_from_lengths_S(self, lengths_S):
+        # Make mask and weight matrices based on output lengths
+        lengths_S_max = torch.max(lengths_S)
+        S = lengths_S.size(0)
+
+        mask_SB = numpy.zeros((S, lengths_S_max))
+
+        for i in range(S):
+            mask_SB[i][:lengths_S[i]] = 1.
+
+        mask_SB = lengths_S.new_tensor(mask_SB)
+
+        return mask_SB
 
     def inference(
         self,
         text: torch.Tensor,
         speech: torch.Tensor = None,
         spembs: torch.Tensor = None,
-        spk_embed_data_cmp: torch.Tensor = None,
+        spk_embed_data_SBD: torch.Tensor = None,
         threshold: float = 0.5,
         minlenratio: float = 0.0,
         maxlenratio: float = 10.0,
@@ -402,6 +429,7 @@ class Tacotron2(AbsTTS):
         backward_window: int = 1,
         forward_window: int = 3,
         use_teacher_forcing: bool = False,
+        **kwargs
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Generate the sequence of features given the sequences of characters.
 
@@ -426,6 +454,7 @@ class Tacotron2(AbsTTS):
         x = text
         y = speech
         spemb = spembs
+        spk_embed_data_SBD = spk_embed_data_SBD
 
         # add eos at the last of sequence
         x = F.pad(x, [0, 1], "constant", self.eos)
@@ -438,34 +467,88 @@ class Tacotron2(AbsTTS):
             spembs = None if spemb is None else spemb.unsqueeze(0)
             ilens = x.new_tensor([xs.size(1)]).long()
             olens = y.new_tensor([ys.size(1)]).long()
-            outs, _, _, att_ws = self._forward(xs, ilens, ys, olens, spembs)
+            # outs, _, _, att_ws = self._forward(xs, ilens, ys, olens, spembs)
+
+            if spk_embed_data_SBD is None:
+                spk_embed_data_SBDs = None
+                spk_embed_data_SBD_lengths = None
+            else:
+                spk_embed_data_SBDs = spk_embed_data_SBD.unsqueeze(0)
+                spk_embed_data_SBD_lengths = spk_embed_data_SBD.new_tensor([spk_embed_data_SBDs.size(1)]).long()
+            outs, before_outs, logits, att_ws = self._forward(xs, ilens, ys, olens, spembs, spk_embed_data_SBDs, spk_embed_data_SBD_lengths)
+
+            # make labels for stop prediction
+            labels = make_pad_mask(olens - 1).to(ys.device, ys.dtype)
+            labels = F.pad(labels, [0, 1], "constant", 1.0)
+            # Compute loss in teacher-forcing mode
+            l1_loss, mse_loss, bce_loss = self.taco2_loss(
+                outs, before_outs, logits, ys, labels, olens
+            )
+            if self.loss_type == "L1+L2":
+                loss = l1_loss + mse_loss + bce_loss
+            elif self.loss_type == "L1":
+                loss = l1_loss + bce_loss
+            elif self.loss_type == "L2":
+                loss = mse_loss + bce_loss
+            else:
+                raise ValueError(f"unknown --loss-type {self.loss_type}")
+
+            stats = dict(
+                l1_loss=l1_loss.item(),
+                mse_loss=mse_loss.item(),
+                bce_loss=bce_loss.item(),
+            )
+
+            # calculate attention loss
+            if self.use_guided_attn_loss:
+                # NOTE(kan-bayashi): length of output for auto-regressive
+                # input will be changed when r > 1
+                if self.reduction_factor > 1:
+                    olens_in = olens.new([olen // self.reduction_factor for olen in olens])
+                else:
+                    olens_in = olens
+                attn_loss = self.attn_loss(att_ws, ilens, olens_in)
+                loss = loss + attn_loss
+                stats.update(attn_loss=attn_loss.item())
+
+            stats.update(loss=loss.item())
+            print(stats)
 
             return outs[0], None, att_ws[0]
 
-        # inference
-        h = self.enc.inference(x)
-        if self.spk_model_name=='gst':
-            style_emb = self.gst(y.unsqueeze(0))
-            h = h + style_emb
-        if self.spk_model_name=='cmp':
-            if spk_embed_data_cmp_SBD is None:
-                spk_embed_data_cmp_SBD = self.make_zero_spk_embed_data_cmp_SBD(hs)
-            spk_embs = self.spk_embed_model.gen_lambda_SD({'h':spk_embed_data_cmp_SBD})
-            hs = hs + spk_embs.unsqueeze(1)
-        if self.spk_embed_dim is not None:
-            hs, spembs = h.unsqueeze(0), spemb.unsqueeze(0)
-            h = self._integrate_with_spk_embed(hs, spembs)[0]
-        outs, probs, att_ws = self.dec.inference(
-            h,
-            threshold=threshold,
-            minlenratio=minlenratio,
-            maxlenratio=maxlenratio,
-            use_att_constraint=use_att_constraint,
-            backward_window=backward_window,
-            forward_window=forward_window,
-        )
+        else:
+            # inference
+            h = self.enc.inference(x)
+            if self.use_spk_model:
+                if self.spk_model_name=='gst':
+                    style_emb = self.gst(y.unsqueeze(0))
+                    h = h + style_emb
+                elif self.spk_model_name=='cmp':
+                    spk_embed_data_SBDs = spk_embed_data_SBD.unsqueeze(0)
+                    spk_embed_data_SBD_lengths = spk_embed_data_SBD.new_tensor([spk_embed_data_SBDs.size(1)]).long()
+                    output_mask_SB = self.make_mask_SB_from_lengths_S(spk_embed_data_SBD_lengths)
+                    spk_embs = self.spk_embed_model.gen_lambda_SD({'h':spk_embed_data_SBD, 'out_lens':spk_embed_data_SBD_lengths, 'output_mask_S_B': output_mask_SB })
 
-        return outs, probs, att_ws
+
+                    # spk_embs = self.spk_embed_model.gen_lambda_SD({'h':spk_embed_data_SBD.unsqueeze(0)})
+                    # spk_embed_data_SBD_lengths = spk_embed_data_SBD_lengths.unsqueeze(0)
+                    # output_mask_SB = self.make_mask_SB_from_lengths_S(spk_embed_data_SBD_lengths)
+                    # spk_embs = self.spk_embed_model.gen_lambda_SD({'h':spk_embed_data_SBD.unsqueeze(0), 'out_lens':spk_embed_data_SBD_lengths, 'output_mask_SB': output_mask_SB })
+                    h = h + spk_embs
+            if self.spk_embed_dim is not None:
+                hs, spembs = h.unsqueeze(0), spemb.unsqueeze(0)
+                h = self._integrate_with_spk_embed(hs, spembs)[0]
+            outs, probs, att_ws = self.dec.inference(
+                h,
+                threshold=threshold,
+                minlenratio=minlenratio,
+                maxlenratio=maxlenratio,
+                use_att_constraint=use_att_constraint,
+                backward_window=backward_window,
+                forward_window=forward_window,
+            )
+
+            return outs, probs, att_ws
 
     def _integrate_with_spk_embed(
         self, hs: torch.Tensor, spembs: torch.Tensor
@@ -493,3 +576,12 @@ class Tacotron2(AbsTTS):
             raise NotImplementedError("support only add or concat.")
 
         return hs
+
+    def gen_lambda_SD(
+        self, 
+        spk_embed_data_SBD: torch.Tensor = None,
+        **kwargs
+        ):
+        if self.spk_model_name=='cmp':
+            spk_embs = self.spk_embed_model.gen_lambda_SD({'h':spk_embed_data_SBD.unsqueeze(0)})
+        return spk_embs[0]
