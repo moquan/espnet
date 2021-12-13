@@ -129,14 +129,14 @@ class Gen_Spk_Embed:
     @torch.no_grad()
     def __call__(
         self,
-        spk_embed_data_cmp_SBD: Union[torch.Tensor, np.ndarray] = None,
+        spk_embed_data_SBD: Union[torch.Tensor, np.ndarray] = None,
         **kwargs
     ):
         assert check_argument_types()
 
         batch = {}
-        if spk_embed_data_cmp_SBD is not None:
-            batch["spk_embed_data_cmp_SBD"] = spk_embed_data_cmp_SBD
+        if spk_embed_data_SBD is not None:
+            batch["spk_embed_data_SBD"] = spk_embed_data_SBD
 
         batch = to_device(batch, self.device)
         spk_embed = self.model.gen_lambda_SD(
