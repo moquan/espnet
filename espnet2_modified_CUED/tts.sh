@@ -628,8 +628,8 @@ if ! "${skip_train}"; then
             _spk_model_data_train_dir="${dumpdir}/spk_model_data/${spk_model_name}/${train_set}"
             _spk_model_data_valid_dir="${dumpdir}/spk_model_data/${spk_model_name}/${valid_set}"
             if [ "${spk_model_name}" = cmp ]; then
-                _opts+="--train_data_path_and_name_and_type ${_spk_model_data_train_dir}/${train_spk_dataset_name}_file_cmp.scp,spk_embed_data_SBD,${train_spk_dataset_type} "
-                _opts+="--valid_data_path_and_name_and_type ${_spk_model_data_valid_dir}/${train_spk_dataset_name}_file_cmp.scp,spk_embed_data_SBD,${train_spk_dataset_type} "
+                _opts+="--train_data_path_and_name_and_type ${_spk_model_data_train_dir}/${train_spk_dataset_name}.scp,spk_embed_data_SBD,${train_spk_dataset_type} "
+                _opts+="--valid_data_path_and_name_and_type ${_spk_model_data_valid_dir}/${train_spk_dataset_name}.scp,spk_embed_data_SBD,${train_spk_dataset_type} "
             fi
         fi
 
@@ -883,8 +883,8 @@ if ! "${skip_train}"; then
             _spk_model_data_train_dir="${dumpdir}/spk_model_data/${spk_model_name}/${train_set}"
             _spk_model_data_valid_dir="${dumpdir}/spk_model_data/${spk_model_name}/${valid_set}"
             if [ "${spk_model_name}" = cmp ]; then
-                _opts+="--train_data_path_and_name_and_type ${_spk_model_data_train_dir}/${train_spk_dataset_name}_file_cmp.scp,spk_embed_data_SBD,${train_spk_dataset_type} "
-                _opts+="--valid_data_path_and_name_and_type ${_spk_model_data_valid_dir}/${train_spk_dataset_name}_file_cmp.scp,spk_embed_data_SBD,${train_spk_dataset_type} "
+                _opts+="--train_data_path_and_name_and_type ${_spk_model_data_train_dir}/${train_spk_dataset_name}.scp,spk_embed_data_SBD,${train_spk_dataset_type} "
+                _opts+="--valid_data_path_and_name_and_type ${_spk_model_data_valid_dir}/${train_spk_dataset_name}.scp,spk_embed_data_SBD,${train_spk_dataset_type} "
             fi
         fi
 
@@ -1035,7 +1035,7 @@ if ! "${skip_eval}"; then
                 # train_args+="--spk_model_name ${spk_model_name} "
                 _spk_model_data_dir="${dumpdir}/spk_model_data/${spk_model_name}/${dset}"
                 if [ "${spk_model_name}" = cmp ]; then
-                    _opts+="--data_path_and_name_and_type ${_spk_model_data_dir}/${inference_spk_dataset_name}_file_cmp.scp,spk_embed_data_SBD,${inference_spk_dataset_type} "
+                    _opts+="--data_path_and_name_and_type ${_spk_model_data_dir}/${inference_spk_dataset_name}.scp,spk_embed_data_SBD,${inference_spk_dataset_type} "
                 fi
             fi
 
@@ -1202,7 +1202,7 @@ if ! "${skip_eval}"; then
                 # train_args+="--spk_model_name ${spk_model_name} "
                 _spk_model_data_dir="${dumpdir}/spk_model_data/${spk_model_name}/${dset}"
                 if [ "${spk_model_name}" = cmp ]; then
-                    _opts+="--data_path_and_name_and_type ${_spk_model_data_dir}/${inference_spk_dataset_name}_file_cmp.scp,spk_embed_data_SBD,${inference_spk_dataset_type} "
+                    _opts+="--data_path_and_name_and_type ${_spk_model_data_dir}/${inference_spk_dataset_name}.scp,spk_embed_data_SBD,${inference_spk_dataset_type} "
                 fi
             fi
 
@@ -1210,7 +1210,7 @@ if ! "${skip_eval}"; then
             cp "${_data}/feats_type" "${_dir}/feats_type"
 
             # 1. Split the key file
-            key_file=${_spk_model_data_dir}/${inference_spk_dataset_name}_file_cmp.scp
+            key_file=${_spk_model_data_dir}/${inference_spk_dataset_name}.scp
             split_scps=""
             _nj=$(min "${inference_nj}" "$(<${key_file} wc -l)")
             for n in $(seq "${_nj}"); do
@@ -1225,7 +1225,7 @@ if ! "${skip_eval}"; then
             ${_cmd} --gpu "${_ngpu}" JOB=1:"${_nj}" "${_logdir}"/tts_inference.JOB.log \
                 ${python} -m espnet2_modified_CUED.bin.tts_inference_spk_embed \
                     --ngpu "${_ngpu}" \
-                    --data_path_and_name_and_type "${_spk_model_data_dir}/${inference_spk_dataset_name}_file_cmp.scp,text,text" \
+                    --data_path_and_name_and_type "${_spk_model_data_dir}/${inference_spk_dataset_name}.scp,text,text" \
                     --key_file "${_logdir}"/keys.JOB.scp \
                     --model_file "${tts_exp}"/"${inference_model}" \
                     --train_config "${tts_exp}"/config.yaml \
