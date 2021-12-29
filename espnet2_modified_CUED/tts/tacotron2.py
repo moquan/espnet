@@ -393,11 +393,8 @@ class Tacotron2(AbsTTS):
                 output_mask_SB = self.make_mask_SB_from_lengths_S(spk_embed_data_SBD_lengths)
                 spk_embs = self.spk_embed_model.gen_lambda_SD({'h':spk_embed_data_SBD, 'out_lens':spk_embed_data_SBD_lengths, 'output_mask_S_B': output_mask_SB })
 
-            if self.spk_model_integration_type == 'add':
-                hs = hs + spk_embs.unsqueeze(1)
-            elif self.spk_model_integration_type == 'concat':
-                spk_embs = spk_embs.unsqueeze(1).expand(-1, hs.size(1), -1)
-                hs = torch.cat([hs, spk_embs], dim=-1)
+            hs = self._integrate_with_spk_model_embed(hs, spk_embs)
+
         if self.spk_embed_dim is not None:
             hs = self._integrate_with_spk_embed(hs, spembs)
         return self.dec(hs, hlens, ys)
@@ -528,13 +525,14 @@ class Tacotron2(AbsTTS):
                     spk_embed_data_SBD_lengths = spk_embed_data_SBD.new_tensor([spk_embed_data_SBDs.size(1)]).long()
                     output_mask_SB = self.make_mask_SB_from_lengths_S(spk_embed_data_SBD_lengths)
                     spk_embs = self.spk_embed_model.gen_lambda_SD({'h':spk_embed_data_SBD, 'out_lens':spk_embed_data_SBD_lengths, 'output_mask_S_B': output_mask_SB })
-
-
                     # spk_embs = self.spk_embed_model.gen_lambda_SD({'h':spk_embed_data_SBD.unsqueeze(0)})
                     # spk_embed_data_SBD_lengths = spk_embed_data_SBD_lengths.unsqueeze(0)
                     # output_mask_SB = self.make_mask_SB_from_lengths_S(spk_embed_data_SBD_lengths)
                     # spk_embs = self.spk_embed_model.gen_lambda_SD({'h':spk_embed_data_SBD.unsqueeze(0), 'out_lens':spk_embed_data_SBD_lengths, 'output_mask_SB': output_mask_SB })
-                    h = h + spk_embs
+                    hs = h.unsqueeze(0)
+                    h = self._integrate_with_spk_model_embed(hs, spk_embs)[0]
+
+                    # h = h + spk_embs
             if self.spk_embed_dim is not None:
                 hs, spembs = h.unsqueeze(0), spemb.unsqueeze(0)
                 h = self._integrate_with_spk_embed(hs, spembs)[0]
@@ -576,6 +574,17 @@ class Tacotron2(AbsTTS):
             raise NotImplementedError("support only add or concat.")
 
         return hs
+
+    def _integrate_with_spk_model_embed(
+        self, hs: torch.Tensor, spk_embs: torch.Tensor
+    ) -> torch.Tensor:
+        if self.spk_model_integration_type == 'add':
+            hs = hs + spk_embs.unsqueeze(1)
+        elif self.spk_model_integration_type == 'concat':
+            spk_embs = spk_embs.unsqueeze(1).expand(-1, hs.size(1), -1)
+            hs = torch.cat([hs, spk_embs], dim=-1)
+        return hs
+
 
     def gen_lambda_SD(
         self, 
