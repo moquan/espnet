@@ -31,7 +31,7 @@ from espnet2.fileio.read_text import read_2column_text
 from espnet2.fileio.sound_scp import SoundScpReader
 from espnet2.utils.sized_dict import SizedDict
 
-from espnet2_modified_CUED.train.dataset_readers import cmp_reader, spk_embed_reader
+from espnet2_modified_CUED.train.dataset_readers import spk_embed_reader, cmp_reader, wav_reader
 
 
 class AdapterForSoundScpReader(collections.abc.Mapping):
@@ -246,10 +246,19 @@ DATA_TYPES = {
     "cmp_binary_\\d+_\\d+": dict(
         func=cmp_reader,
         kwargs=["loader_type"],
-        help="e.g. cmp_binary_86_40, feat_dim, window_size"
+        help="e.g. cmp_binary_86_40, feat_dim, window_size; shift=1"
         "\n\n"
-        "   utterance_id_A /some/where/a.cmp\n"
-        "   utterance_id_B /some/where/b.cmp\n"
+        "   p001_001 p001_060 p001_064 p001_065\n"
+        "   p001_001 p001_5_seconds\n"
+        "   ...",
+    ),
+    "wav_binary_\\d+_\\d+": dict(
+        func=wav_reader,
+        kwargs=["loader_type"],
+        help="e.g. wav_binary_3000_1200, window_size, window shift"
+        "\n\n"
+        "   p001_001 p001_060 p001_064 p001_065\n"
+        "   p001_001 p001_5_seconds\n"
         "   ...",
     ),
     "spk_embed_\\d+": dict(
@@ -257,8 +266,9 @@ DATA_TYPES = {
         kwargs=["loader_type"],
         help="e.g. spk_embed_512, spk_embed_dim"
         "\n\n"
-        "   utterance_id_A /some/where/\n"
-        "   utterance_id_B /some/where/\n"
+        "   p001_001 p001_060 p001_064 p001_065\n"
+        "   p001_001 p001_5_seconds\n"
+        "   p001_001 p001\n"
         "   ...",
     ),
 }
