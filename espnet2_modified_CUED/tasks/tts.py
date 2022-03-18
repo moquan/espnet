@@ -214,7 +214,7 @@ class TTSTask(AbsTask):
     ]:
         assert check_argument_types()
         return CommonCollateFn(
-            float_pad_value=0.0, int_pad_value=0, not_sequence=["spembs"]
+            float_pad_value=1.0, int_pad_value=1, not_sequence=["spembs"]
         )
 
     @classmethod
