@@ -388,8 +388,7 @@ class Tacotron2(AbsTTS):
             if self.spk_model_name=='gst':
                 style_embs = self.gst(ys)
                 spk_embs = style_embs
-                # hs = hs + style_embs.unsqueeze(1)
-            elif self.spk_model_name=='cmp':
+            else:
                 output_mask_SB = self.make_mask_SB_from_lengths_S(spk_embed_data_SBD_lengths)
                 spk_embs = self.spk_embed_model.gen_lambda_SD({'h':spk_embed_data_SBD, 'out_lens':spk_embed_data_SBD_lengths, 'output_mask_S_B': output_mask_SB })
 
@@ -520,15 +519,11 @@ class Tacotron2(AbsTTS):
                 if self.spk_model_name=='gst':
                     style_emb = self.gst(y.unsqueeze(0))
                     h = h + style_emb
-                elif self.spk_model_name=='cmp':
+                else:
                     spk_embed_data_SBDs = spk_embed_data_SBD.unsqueeze(0)
                     spk_embed_data_SBD_lengths = spk_embed_data_SBD.new_tensor([spk_embed_data_SBDs.size(1)]).long()
                     output_mask_SB = self.make_mask_SB_from_lengths_S(spk_embed_data_SBD_lengths)
-                    spk_embs = self.spk_embed_model.gen_lambda_SD({'h':spk_embed_data_SBD, 'out_lens':spk_embed_data_SBD_lengths, 'output_mask_S_B': output_mask_SB })
-                    # spk_embs = self.spk_embed_model.gen_lambda_SD({'h':spk_embed_data_SBD.unsqueeze(0)})
-                    # spk_embed_data_SBD_lengths = spk_embed_data_SBD_lengths.unsqueeze(0)
-                    # output_mask_SB = self.make_mask_SB_from_lengths_S(spk_embed_data_SBD_lengths)
-                    # spk_embs = self.spk_embed_model.gen_lambda_SD({'h':spk_embed_data_SBD.unsqueeze(0), 'out_lens':spk_embed_data_SBD_lengths, 'output_mask_SB': output_mask_SB })
+                    spk_embs = self.spk_embed_model.gen_lambda_SD({'h':spk_embed_data_SBDs, 'out_lens':spk_embed_data_SBD_lengths, 'output_mask_S_B': output_mask_SB })
                     hs = h.unsqueeze(0)
                     h = self._integrate_with_spk_model_embed(hs, spk_embs)[0]
 
@@ -591,6 +586,8 @@ class Tacotron2(AbsTTS):
         spk_embed_data_SBD: torch.Tensor = None,
         **kwargs
         ):
-        if self.spk_model_name=='cmp':
-            spk_embs = self.spk_embed_model.gen_lambda_SD({'h':spk_embed_data_SBD.unsqueeze(0)})
+        spk_embed_data_SBDs = spk_embed_data_SBD.unsqueeze(0)
+        spk_embed_data_SBD_lengths = spk_embed_data_SBD.new_tensor([spk_embed_data_SBDs.size(1)]).long()
+        output_mask_SB = self.make_mask_SB_from_lengths_S(spk_embed_data_SBD_lengths)
+        spk_embs = self.spk_embed_model.gen_lambda_SD({'h':spk_embed_data_SBD, 'out_lens':spk_embed_data_SBD_lengths, 'output_mask_S_B': output_mask_SB })
         return spk_embs[0]
