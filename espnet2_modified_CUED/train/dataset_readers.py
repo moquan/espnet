@@ -207,3 +207,33 @@ class wav_reader(data_reader_base):
     def file_id_str_handler(self, file_id_str):
         BD_data, B, start_sample_number = self.data_loader.make_BD_data(file_id_str, start_sample_number=0)
         return BD_data
+
+class wav_f_tau_vuv_reader(data_reader_base):
+    """
+    Reader class for a scp file of wav file.
+    loader_type: wav_binary_%i_%i % window_size, window_shift
+    """
+
+    def __init__(self, fname: Union[Path, str], loader_type: str):
+        super().__init__(fname, loader_type)
+
+        self.window_size, self.window_shift = map(int, loader_type[len("wav_f_tau_vuv_binary_") :].split("_"))
+
+        from exp_mw545.exp_dv_wav_sinenet_v0 import dv_y_wav_sinenet_configuration
+        from frontend_mw545.data_loader import Build_dv_y_wav_data_loader_Multi_Speaker
+        self.cfg = configuration(cache_files=False)
+        self.dv_y_cfg = dv_y_wav_sinenet_configuration(self.cfg, cache_files=False)
+        self.dv_y_cfg.input_data_dim['T_B'] = self.window_size
+        self.dv_y_cfg.input_data_dim['B_stride'] = self.window_shift
+        # self.dv_y_cfg.out_feat_list = ['wav_SBT', 'f_SBM', 'tau_SBM', 'vuv_SBM']
+        self.dv_y_cfg.update_wav_dim()
+        self.data_loader = Build_dv_y_wav_data_loader_Multi_Speaker(self.cfg, self.dv_y_cfg)
+
+        # assert self.dv_y_cfg.input_data_dim['T_B'] == self.window_size
+        # assert self.dv_y_cfg.input_data_dim['B_stride'] == self.window_shift
+
+    def file_id_str_handler(self, file_id_str):
+        BD_data, B, start_sample_number = self.data_loader.make_BD_data(file_id_str, start_sample_number=0)
+        return BD_data
+
+        
