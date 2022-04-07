@@ -45,3 +45,51 @@ def Build_spk_embed_y_model(spk_model_name):
         model = Build_DV_Y_model(dv_y_cfg)
         return model.nn_model
 
+    if spk_model_name == 'sincnet':
+        from exp_mw545.exp_dv_wav_sincnet import dv_y_wav_sincnet_configuration
+        dv_y_cfg = dv_y_wav_sincnet_configuration(cfg, cache_files=False)
+        model = Build_DV_Y_model(dv_y_cfg)
+        model.torch_initialisation()
+        prev_nnets_file_name = '/home/dawna/tts/mw545/TorchDV/dv_wav_sincnet/dvy_wav_lr1E-04_fpu40_Sin60_LRe512L_LRe512L_Lin512L_DV512S10T3000/Model'
+        model.load_nn_model(prev_nnets_file_name)
+        return model.nn_model
+
+    if spk_model_name == 'sincnet_4800':
+        from exp_mw545.exp_dv_wav_sincnet import dv_y_wav_sincnet_configuration
+        dv_y_cfg = dv_y_wav_sincnet_configuration(cfg, cache_files=False)
+        dv_y_cfg.input_data_dim['T_B'] = int(0.2 * dv_y_cfg.cfg.wav_sr)
+        dv_y_cfg.input_data_dim['B_stride'] = dv_y_cfg.input_data_dim['T_B']
+        dv_y_cfg.update_wav_dim()
+        model = Build_DV_Y_model(dv_y_cfg)
+        return model.nn_model
+
+    if spk_model_name == 'sinenet':
+        from exp_mw545.exp_dv_wav_sinenet_v0 import dv_y_wav_sinenet_configuration
+        dv_y_cfg = dv_y_wav_sinenet_configuration(cfg, cache_files=False)
+        model = Build_DV_Y_model(dv_y_cfg)
+        model.torch_initialisation()
+        # if dv_y_cfg.prev_nnets_file_name is None:
+        #     prev_nnets_file_name = dv_y_cfg.nnets_file_name
+        # else:
+        #     prev_nnets_file_name = dv_y_cfg.prev_nnets_file_name
+        prev_nnets_file_name = '/home/dawna/tts/mw545/TorchDV/dv_wav_sinenet_v0/dvy_wav_lr1E-04_fpu40_Sin80af64ks0.5T_LRe512L_LRe512L_Lin512L_DV512S10T3000TM240/Model'
+        model.load_nn_model(prev_nnets_file_name)
+        return model.nn_model
+
+    if spk_model_name == 'sinenet_4800':
+        from exp_mw545.exp_dv_wav_sinenet_v0 import dv_y_wav_sinenet_configuration
+        dv_y_cfg = dv_y_wav_sinenet_configuration(cfg, cache_files=False)
+        dv_y_cfg.input_data_dim['T_B'] = int(0.2 * dv_y_cfg.cfg.wav_sr)
+        dv_y_cfg.input_data_dim['B_stride'] = dv_y_cfg.input_data_dim['T_B']
+        dv_y_cfg.update_wav_dim()
+
+        dv_y_cfg.nn_layer_config_list[2] = {'type': 'Sinenet_V0', 'size':60, 'num_freq':64, 'k_space':0.5, 'dropout_p':0, 'use_f': 'D', 'use_tau': 'D', 'inc_a':True, 'k_train':True, 'batch_norm':False}
+        model = Build_DV_Y_model(dv_y_cfg)
+        # model.torch_initialisation()
+        # if dv_y_cfg.prev_nnets_file_name is None:
+        #     prev_nnets_file_name = dv_y_cfg.nnets_file_name
+        # else:
+        #     prev_nnets_file_name = dv_y_cfg.prev_nnets_file_name
+        # model.load_nn_model(dv_y_cfg.nnets_file_name)
+        return model.nn_model
+
