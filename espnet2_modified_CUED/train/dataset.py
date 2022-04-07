@@ -31,7 +31,7 @@ from espnet2.fileio.read_text import read_2column_text
 from espnet2.fileio.sound_scp import SoundScpReader
 from espnet2.utils.sized_dict import SizedDict
 
-from espnet2_modified_CUED.train.dataset_readers import spk_embed_reader, cmp_reader, wav_reader
+from espnet2_modified_CUED.train.dataset_readers import spk_embed_reader, cmp_reader, wav_reader, wav_f_tau_vuv_reader
 
 
 class AdapterForSoundScpReader(collections.abc.Mapping):
@@ -256,6 +256,15 @@ DATA_TYPES = {
         func=wav_reader,
         kwargs=["loader_type"],
         help="e.g. wav_binary_3000_1200, window_size, window shift"
+        "\n\n"
+        "   p001_001 p001_060 p001_064 p001_065\n"
+        "   p001_001 p001_5_seconds\n"
+        "   ...",
+    ),
+    "wav_f_tau_vuv_binary_\\d+_\\d+": dict(
+        func=wav_f_tau_vuv_reader,
+        kwargs=["loader_type"],
+        help="e.g. wav_f_tau_vuv_binary_3000_3000, window_size, window shift"
         "\n\n"
         "   p001_001 p001_060 p001_064 p001_065\n"
         "   p001_001 p001_5_seconds\n"
