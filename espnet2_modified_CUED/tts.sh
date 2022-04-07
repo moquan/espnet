@@ -627,10 +627,8 @@ if ! "${skip_train}"; then
             # train_args+="--spk_model_name ${spk_model_name} "
             _spk_model_data_train_dir="${dumpdir}/spk_model_data/${spk_model_name}/${train_set}"
             _spk_model_data_valid_dir="${dumpdir}/spk_model_data/${spk_model_name}/${valid_set}"
-            if [ "${spk_model_name}" = cmp ]; then
                 _opts+="--train_data_path_and_name_and_type ${_spk_model_data_train_dir}/${train_spk_dataset_name}.scp,spk_embed_data_SBD,${train_spk_dataset_type} "
                 _opts+="--valid_data_path_and_name_and_type ${_spk_model_data_valid_dir}/${train_spk_dataset_name}.scp,spk_embed_data_SBD,${train_spk_dataset_type} "
-            fi
         fi
 
 
@@ -882,10 +880,8 @@ if ! "${skip_train}"; then
             # train_args+="--spk_model_name ${spk_model_name} "
             _spk_model_data_train_dir="${dumpdir}/spk_model_data/${spk_model_name}/${train_set}"
             _spk_model_data_valid_dir="${dumpdir}/spk_model_data/${spk_model_name}/${valid_set}"
-            if [ "${spk_model_name}" = cmp ]; then
                 _opts+="--train_data_path_and_name_and_type ${_spk_model_data_train_dir}/${train_spk_dataset_name}.scp,spk_embed_data_SBD,${train_spk_dataset_type} "
                 _opts+="--valid_data_path_and_name_and_type ${_spk_model_data_valid_dir}/${train_spk_dataset_name}.scp,spk_embed_data_SBD,${train_spk_dataset_type} "
-            fi
         fi
 
         log "Generate '${tts_exp}/run.sh'. You can resume the process from stage 6 using this script"
@@ -1034,9 +1030,7 @@ if ! "${skip_eval}"; then
             if "${use_spk_model}"; then
                 # train_args+="--spk_model_name ${spk_model_name} "
                 _spk_model_data_dir="${dumpdir}/spk_model_data/${spk_model_name}/${dset}"
-                if [ "${spk_model_name}" = cmp ]; then
                     _opts+="--data_path_and_name_and_type ${_spk_model_data_dir}/${inference_spk_dataset_name}.scp,spk_embed_data_SBD,${inference_spk_dataset_type} "
-                fi
             fi
 
             # 0. Copy feats_type
@@ -1110,9 +1104,8 @@ if ! "${skip_eval}"; then
             else
                 # 5. Remove feature files to free up disk space
                 for i in $(seq "${_nj}"); do
-                    rm -rf "${_logdir}/output.${i}"/norm
-                    rm -rf "${_logdir}/output.${i}"/denorm
-                    rm -rf "${_logdir}/output.${i}"/wav
+                    rm -rf "${_logdir}/output.${i}"
+                    rm -rf "${_logdir}/keys.${i}.scp"
                 done
             fi
 
@@ -1201,9 +1194,7 @@ if ! "${skip_eval}"; then
             if "${use_spk_model}"; then
                 # train_args+="--spk_model_name ${spk_model_name} "
                 _spk_model_data_dir="${dumpdir}/spk_model_data/${spk_model_name}/${dset}"
-                if [ "${spk_model_name}" = cmp ]; then
                     _opts+="--data_path_and_name_and_type ${_spk_model_data_dir}/${inference_spk_dataset_name}.scp,spk_embed_data_SBD,${inference_spk_dataset_type} "
-                fi
             fi
 
             # 0. Copy feats_type
