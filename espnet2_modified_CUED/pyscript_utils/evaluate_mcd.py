@@ -304,7 +304,7 @@ def main():
                 f.write(f"{utt_id} {mcd:.4f}\n")
         with open(f"{args.outdir}/resuls.txt", "w") as f:
             f.write(f"#utterances: {len(gen_files)}\n")
-            f.write(f"Average: {mean_mcd:.4f} ± {std_mcd:.4f}")
+            f.write(f"Average: {mean_mcd:.4f} +- {std_mcd:.4f}")
 
     logging.info("Successfully finished MCD evaluation.")
 
