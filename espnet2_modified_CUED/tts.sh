@@ -56,6 +56,7 @@ use_spk_model=false  # Whether to use a model to extract spk_embed
 spk_model_name=''    # Which spk_embed model to use
 train_spk_dataset_name=''  # Which dataset to use for speaker embedding model during training
 train_spk_dataset_type=''  # Type of dataset to use for speaker embedding model during training
+init_param=''        # Path of model parameters for initialisation
 
 inference_spk_dataset_name=''  # Which dataset to use for speaker embedding model during inference
 inference_spk_dataset_type=''  # Type of dataset to use for speaker embedding model during inference
@@ -153,6 +154,7 @@ Options:
     --spk_model_name   # Which spk_embed model to use
     --train_spk_dataset_name # Which dataset to use for speaker embedding model during training (default="random_1")
     --train_spk_dataset_type # Type of dataset to use for speaker embedding model during training (default="cmp_binary_86_40")
+    --init_param        # Path of model parameters for initialisation (default='')
 
     --inference_spk_dataset_name # Which dataset to use for speaker embedding model during inference (default="random_1")
     --inference_spk_dataset_type # Type of dataset to use for speaker embedding model during inference (default="cmp_binary_86_40")
@@ -882,6 +884,10 @@ if ! "${skip_train}"; then
             _spk_model_data_valid_dir="${dumpdir}/spk_model_data/${spk_model_name}/${valid_set}"
                 _opts+="--train_data_path_and_name_and_type ${_spk_model_data_train_dir}/${train_spk_dataset_name}.scp,spk_embed_data_SBD,${train_spk_dataset_type} "
                 _opts+="--valid_data_path_and_name_and_type ${_spk_model_data_valid_dir}/${train_spk_dataset_name}.scp,spk_embed_data_SBD,${train_spk_dataset_type} "
+        fi
+
+        if [ ${init_param} != '' ]; then
+            _opts+="--init_param ${init_param} "
         fi
 
         log "Generate '${tts_exp}/run.sh'. You can resume the process from stage 6 using this script"
