@@ -93,3 +93,29 @@ def Build_spk_embed_y_model(spk_model_name):
         # model.load_nn_model(dv_y_cfg.nnets_file_name)
         return model.nn_model
 
+    if spk_model_name == 'sinenet_v1':
+        from exp_mw545.exp_dv_wav_sinenet_v1 import dv_y_wav_sinenet_configuration
+        dv_y_cfg = dv_y_wav_sinenet_configuration(cfg, cache_files=False)
+        model = Build_DV_Y_model(dv_y_cfg)
+        model.torch_initialisation()
+        # if dv_y_cfg.prev_nnets_file_name is None:
+        #     prev_nnets_file_name = dv_y_cfg.nnets_file_name
+        # else:
+        #     prev_nnets_file_name = dv_y_cfg.prev_nnets_file_name
+        prev_nnets_file_name = '/home/dawna/tts/mw545/TorchDV/dv_wav_sinenet_v1/dvy_wav_lr1E-04_fpu40_Sin80f64ks0.5T_LRe512L_LRe512L_Lin512L_DV512S10T3000TM240/Model'
+        model.load_nn_model(prev_nnets_file_name)
+        return model.nn_model
+
+    if spk_model_name == 'sinenet_v2':
+        from exp_mw545.exp_dv_wav_sinenet_v2 import dv_y_wav_sinenet_configuration
+        dv_y_cfg = dv_y_wav_sinenet_configuration(cfg, cache_files=False)
+        model = Build_DV_Y_model(dv_y_cfg)
+        model.torch_initialisation()
+        # if dv_y_cfg.prev_nnets_file_name is None:
+        #     prev_nnets_file_name = dv_y_cfg.nnets_file_name
+        # else:
+        #     prev_nnets_file_name = dv_y_cfg.prev_nnets_file_name
+        prev_nnets_file_name = '/home/dawna/tts/mw545/TorchDV/dv_wav_sinenet_v2/dvy_wav_lr1E-04_fpu40_Sin80f64ks0.5T_LRe512L_LRe512L_Lin512L_DV512S10T3000TM240/Model'
+        model.load_nn_model(prev_nnets_file_name)
+        return model.nn_model
+
