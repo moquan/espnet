@@ -193,9 +193,22 @@ class Tacotron2(AbsTTS):
         dec_idim = eunits
 
         if self.use_spk_model:
-            if self.spk_model_name == 'gst':
+            if self.spk_model_name == 'gst_self':
                 self.gst = StyleEncoder(
                     idim=odim,  # the input is mel-spectrogram
+                    gst_tokens=gst_tokens,
+                    gst_token_dim=eunits,
+                    gst_heads=gst_heads,
+                    conv_layers=gst_conv_layers,
+                    conv_chans_list=gst_conv_chans_list,
+                    conv_kernel_size=gst_conv_kernel_size,
+                    conv_stride=gst_conv_stride,
+                    gru_layers=gst_gru_layers,
+                    gru_units=gst_gru_units,
+                )
+            elif self.spk_model_name == 'gst':
+                self.spk_embed_model = StyleEncoder(
+                    idim=86,  # hard-coded vocoder feature dimension
                     gst_tokens=gst_tokens,
                     gst_token_dim=eunits,
                     gst_heads=gst_heads,
@@ -385,8 +398,11 @@ class Tacotron2(AbsTTS):
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         hs, hlens = self.enc(xs, ilens)
         if self.use_spk_model:
-            if self.spk_model_name=='gst':
+            if self.spk_model_name=='gst_self':
                 style_embs = self.gst(ys)
+                spk_embs = style_embs
+            elif self.spk_model_name=='gst':
+                style_embs = self.spk_embed_model(spk_embed_data_SBD)
                 spk_embs = style_embs
             else:
                 output_mask_SB = self.make_mask_SB_from_lengths_S(spk_embed_data_SBD_lengths)
@@ -516,16 +532,19 @@ class Tacotron2(AbsTTS):
             # inference
             h = self.enc.inference(x)
             if self.use_spk_model:
-                if self.spk_model_name=='gst':
+                if self.spk_model_name=='gst_self':
                     style_emb = self.gst(y.unsqueeze(0))
-                    h = h + style_emb
+                    spk_embs = style_emb
+                elif self.spk_model_name=='gst':
+                    style_emb = self.spk_embed_model(spk_embed_data_SBD.unsqueeze(0))
+                    spk_embs = style_emb
                 else:
                     spk_embed_data_SBDs = spk_embed_data_SBD.unsqueeze(0)
                     spk_embed_data_SBD_lengths = spk_embed_data_SBD.new_tensor([spk_embed_data_SBDs.size(1)]).long()
                     output_mask_SB = self.make_mask_SB_from_lengths_S(spk_embed_data_SBD_lengths)
                     spk_embs = self.spk_embed_model.gen_lambda_SD({'h':spk_embed_data_SBDs, 'out_lens':spk_embed_data_SBD_lengths, 'output_mask_S_B': output_mask_SB })
-                    hs = h.unsqueeze(0)
-                    h = self._integrate_with_spk_model_embed(hs, spk_embs)[0]
+                hs = h.unsqueeze(0)
+                h = self._integrate_with_spk_model_embed(hs, spk_embs)[0]
 
                     # h = h + spk_embs
             if self.spk_embed_dim is not None:
