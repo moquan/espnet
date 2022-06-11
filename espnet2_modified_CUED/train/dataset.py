@@ -32,7 +32,7 @@ from espnet2.fileio.sound_scp import SoundScpReader
 from espnet2.utils.sized_dict import SizedDict
 
 from espnet2_modified_CUED.train.dataset_readers import spk_embed_reader, cmp_reader, wav_reader, wav_f_tau_vuv_reader
-
+from espnet2_modified_CUED.train.dataset_readers import cmp_lab_reader, wav_lab_reader, wav_f_tau_vuv_lab_reader
 
 class AdapterForSoundScpReader(collections.abc.Mapping):
     def __init__(self, loader, dtype=None):
@@ -278,6 +278,33 @@ DATA_TYPES = {
         "   p001_001 p001_060 p001_064 p001_065\n"
         "   p001_001 p001_5_seconds\n"
         "   p001_001 p001\n"
+        "   ...",
+    ),
+    "cmp_lab_binary_\\d+_\\d+_\\d+": dict(
+        func=cmp_lab_reader,
+        kwargs=["loader_type"],
+        help="e.g. cmp_lab_binary_86_40_5, feat_dim, window_size, num_labs; shift=1"
+        "\n\n"
+        "   p001_001 p001_060 p001_064 p001_065\n"
+        "   p001_001 p001_5_seconds\n"
+        "   ...",
+    ),
+    "wav_lab_binary_\\d+_\\d+_\\d+": dict(
+        func=wav_lab_reader,
+        kwargs=["loader_type"],
+        help="e.g. wav_lab_binary_3000_1200_5, window_size, window shift, num_labs"
+        "\n\n"
+        "   p001_001 p001_060 p001_064 p001_065\n"
+        "   p001_001 p001_5_seconds\n"
+        "   ...",
+    ),
+    "wav_f_tau_vuv_lab_binary_\\d+_\\d+": dict(
+        func=wav_f_tau_vuv_lab_reader,
+        kwargs=["loader_type"],
+        help="e.g. wav_f_tau_vuv_lab_binary_3000_3000_5, window_size, window shift, num_labs"
+        "\n\n"
+        "   p001_001 p001_060 p001_064 p001_065\n"
+        "   p001_001 p001_5_seconds\n"
         "   ...",
     ),
 }
