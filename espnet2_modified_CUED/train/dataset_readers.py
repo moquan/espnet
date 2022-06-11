@@ -211,7 +211,7 @@ class wav_reader(data_reader_base):
 class wav_f_tau_vuv_reader(data_reader_base):
     """
     Reader class for a scp file of wav file.
-    loader_type: wav_binary_%i_%i % window_size, window_shift
+    loader_type: wav_f_tau_vuv_binary_%i_%i % window_size, window_shift
     """
 
     def __init__(self, fname: Union[Path, str], loader_type: str):
@@ -234,6 +234,118 @@ class wav_f_tau_vuv_reader(data_reader_base):
 
     def file_id_str_handler(self, file_id_str):
         BD_data, B, start_sample_number = self.data_loader.make_BD_data(file_id_str, start_sample_number=0)
+        return BD_data
+        
+
+def compute_label_index_list(window_size, num_labs):
+    if num_labs == 5:
+        if window_size == 40:
+            label_index_list = [0,10,20,30,39]
+        if window_size == 3000:
+            label_index_list = [0,6,12,18,24]
+    return label_index_list
+
+class cmp_lab_reader(data_reader_base):
+    """
+    Reader class for a scp file of cmp with lab
+    loader_type: cmp_binary_%i_%i_%i % dimension, window_size, num_labs
+    """
+
+    def __init__(self, fname: Union[Path, str], loader_type: str):
+        super().__init__(fname, loader_type)
+
+        self.feat_dim, self.window_size, self.num_labs = map(int, loader_type[len("cmp_lab_binary_") :].split("_"))
+
+        from exp_mw545.exp_dv_cmp_lab_attention import dv_y_cmp_configuration, dv_cmp_lab_attention_configuration
+        from frontend_mw545.data_loader import Build_dv_y_cmp_data_loader_Multi_Speaker, Build_dv_atten_lab_data_loader_Multi_Speaker
+
+        self.cfg = configuration(cache_files=False)
+        self.dv_y_cfg = dv_y_cmp_configuration(self.cfg, cache_files=False)
+        self.dv_y_cfg.input_data_dim['T_B'] = self.window_size
+        self.dv_y_cfg.input_data_dim['D'] = (self.window_size * self.feat_dim)
+        self.dv_y_cfg.update_cmp_dim()
+
+        self.dv_attn_cfg = dv_cmp_lab_attention_configuration(self.cfg, self.dv_y_cfg, cache_files=False)
+        self.dv_attn_cfg.label_index_list = compute_label_index_list(self.window_size, self.num_labs)
+        self.dv_attn_cfg.update_lab_dim()
+
+        self.y_data_loader = Build_dv_y_cmp_data_loader_Multi_Speaker(self.cfg, self.dv_y_cfg)
+        self.l_data_loader = Build_dv_atten_lab_data_loader_Multi_Speaker(self.cfg, self.dv_attn_cfg)
+
+    def file_id_str_handler(self, file_id_str):
+        BD_data_y, B, start_sample_number = self.y_data_loader.make_BD_data(file_id_str, start_sample_number=0)
+        BD_data_l, B, start_sample_number = self.l_data_loader.make_BD_data(file_id_str, start_sample_number=0)
+        BD_data = numpy.concatenate((BD_data_y, BD_data_l), axis=1)
+        return BD_data
+
+
+class wav_lab_reader(data_reader_base):
+    """
+    Reader class for a scp file of wav with lab
+    loader_type: wav_lab_binary_%i_%i_%i % window_size, window_shift, num_labs
+    """
+
+    def __init__(self, fname: Union[Path, str], loader_type: str):
+        super().__init__(fname, loader_type)
+
+        self.window_size, self.window_shift, self.num_labs = map(int, loader_type[len("wav_lab_binary_") :].split("_"))
+
+        from exp_mw545.exp_dv_wav_sincnet_lab_attention import dv_y_wav_sincnet_configuration, dv_wav_sincnet_lab_attention_configuration
+        from frontend_mw545.data_loader import Build_dv_y_wav_data_loader_Multi_Speaker, Build_dv_atten_lab_data_loader_Multi_Speaker
+
+
+        self.cfg = configuration(cache_files=False)
+        self.dv_y_cfg = dv_y_wav_sincnet_configuration(self.cfg, cache_files=False)
+        self.dv_y_cfg.input_data_dim['T_B'] = self.window_size
+        self.dv_y_cfg.input_data_dim['B_stride'] = self.window_shift
+        self.dv_y_cfg.update_wav_dim()
+
+        self.dv_attn_cfg = dv_wav_sincnet_lab_attention_configuration(self.cfg, self.dv_y_cfg, cache_files=False)
+        self.dv_attn_cfg.label_index_list = compute_label_index_list(self.window_size, self.num_labs)
+        self.dv_attn_cfg.update_lab_dim()
+
+        self.y_data_loader = Build_dv_y_wav_data_loader_Multi_Speaker(self.cfg, self.dv_y_cfg)
+        self.l_data_loader = Build_dv_atten_lab_data_loader_Multi_Speaker(self.cfg, self.dv_attn_cfg)
+
+    def file_id_str_handler(self, file_id_str):
+        BD_data_y, B, start_sample_number = self.y_data_loader.make_BD_data(file_id_str, start_sample_number=0)
+        BD_data_l, B, start_sample_number = self.l_data_loader.make_BD_data(file_id_str, start_sample_number=0)
+        BD_data = numpy.concatenate((BD_data_y, BD_data_l), axis=1)
+        return BD_data
+
+
+
+class wav_f_tau_vuv_lab_reader(data_reader_base):
+    """
+    Reader class for a scp file of wav with lab
+    loader_type: wav_f_tau_vuv_lab_binary_%i_%i_%i % window_size, window_shift, num_labs
+    """
+
+    def __init__(self, fname: Union[Path, str], loader_type: str):
+        super().__init__(fname, loader_type)
+
+        self.window_size, self.window_shift, self.num_labs = map(int, loader_type[len("wav_f_tau_vuv_lab_binary_") :].split("_"))
+
+        from exp_mw545.exp_dv_wav_sinenet_v2_lab_attention import dv_y_wav_sinenet_configuration, dv_wav_sinenet_lab_attention_configuration
+        from frontend_mw545.data_loader import Build_dv_y_wav_data_loader_Multi_Speaker, Build_dv_atten_lab_data_loader_Multi_Speaker
+
+        self.cfg = configuration(cache_files=False)
+        self.dv_y_cfg = dv_y_wav_sinenet_configuration(self.cfg, cache_files=False)
+        self.dv_y_cfg.input_data_dim['T_B'] = self.window_size
+        self.dv_y_cfg.input_data_dim['B_stride'] = self.window_shift
+        self.dv_y_cfg.update_wav_dim()
+
+        self.dv_attn_cfg = dv_wav_sinenet_lab_attention_configuration(self.cfg, self.dv_y_cfg, cache_files=False)
+        self.dv_attn_cfg.label_index_list = compute_label_index_list(self.window_size, self.num_labs)
+        self.dv_attn_cfg.update_lab_dim()
+
+        self.y_data_loader = Build_dv_y_wav_data_loader_Multi_Speaker(self.cfg, self.dv_y_cfg)
+        self.l_data_loader = Build_dv_atten_lab_data_loader_Multi_Speaker(self.cfg, self.dv_attn_cfg)
+
+    def file_id_str_handler(self, file_id_str):
+        BD_data_y, B, start_sample_number = self.y_data_loader.make_BD_data(file_id_str, start_sample_number=0)
+        BD_data_l, B, start_sample_number = self.l_data_loader.make_BD_data(file_id_str, start_sample_number=0)
+        BD_data = numpy.concatenate((BD_data_y, BD_data_l), axis=1)
         return BD_data
 
         
